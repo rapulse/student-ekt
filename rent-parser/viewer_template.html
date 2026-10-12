@@ -200,7 +200,7 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
       <p class="est">Все цифры времени в пути и «рынка» — оценки; перед звонком сверить цену, залог и комиссию на самом сайте.</p>
     </div>
   </div>
-  <button class="btn" id="reset">Сбросить фильтры</button>
+  <button class="btn" id="reset" title="Сбросить фильтры">Сброс</button>
   <span class="info" tabindex="0" title="Отметки «интересно / отказ» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
   <button class="btn" id="export" hidden title="Скачать отметки в «Загрузки»: следующий прогон перенесёт их в базу и дозагрузит карточки «интересных»">Выгрузить отметки</button>
 </div>
@@ -866,7 +866,7 @@ function pinTo(keys, label) {
 function renderList() {
   const rows = pinned ? rowsCache.filter((r) => pinned.keys.has(r.g.key)) : rowsCache;
   const bar = pinned ? `<div class="pinbar" id="unpin">📍 ${esc(pinned.label)}: ${rows.length} ${rows.length === 1 ? "квартира" : rows.length < 5 ? "квартиры" : "квартир"}<span>показать все ✕</span></div>` : "";
-  $("#list").innerHTML = bar + (rows.slice(0, shown).map(card).join("") || '<div class="empty">Ничего не подходит под фильтры. «Сбросить фильтры» — вверху справа.</div>') +
+  $("#list").innerHTML = bar + (rows.slice(0, shown).map(card).join("") || '<div class="empty">Ничего не подходит под фильтры. «Сброс» — вверху справа.</div>') +
     (rows.length > shown ? `<button class="more" id="more">показать ещё (${rub(rows.length - shown)})</button>` : "");
 }
 function render() {
