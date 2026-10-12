@@ -17,3 +17,4 @@ data/listings.parquet
 data/transit.json
 data/transit_routes.json
 data/*.tmp
+data/smart.json

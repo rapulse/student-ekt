@@ -7,10 +7,11 @@ cd "$DIR/.."
 
 python3 rent-parser/main.py "$@"
 
-# Время в пути до НВК (оценка) — отдельный шаг: если сломается, база и карта уже готовы
-if python3 rent-parser/transit/transit.py; then
+# Дополнительные шаги — отдельные скрипты: если какой-то сломается, база и карта уже готовы
+extra=0
+python3 rent-parser/transit/transit.py && extra=1 || echo "⚠️  время в пути не посчитано (на базу и карту не влияет)"
+python3 rent-parser/smart/smart.py && extra=1 || echo "⚠️  умный фильтр не посчитан (на базу и карту не влияет)"
+if [ "$extra" = 1 ]; then
   PYTHONPATH=rent-parser:rent-parser/pipeline python3 -c "from export_viewer import export_to_viewer; export_to_viewer()" \
-    || echo "⚠️  карта не пересобрана со временем в пути — откроется прежняя"
-else
-  echo "⚠️  время в пути не посчитано (на базу и карту не влияет)"
+    || echo "⚠️  карта не пересобрана с доп. данными — откроется прежняя"
 fi

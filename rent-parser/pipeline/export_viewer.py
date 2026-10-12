@@ -111,10 +111,11 @@ def costs(r):
     }
 
 
-def _load_transit():
-    """Время в пути из data/transit.json (rent-parser/transit/transit.py). Нет или битый — пусто, карта как раньше."""
+def _load_extra(name):
+    """Данные отдельных скриптов: transit.json (время в пути), smart.json (умный фильтр).
+    Нет файла или битый — пусто, карта как раньше."""
     try:
-        return json.loads((DATA / "transit.json").read_text(encoding="utf-8"))
+        return json.loads((DATA / name).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -204,7 +205,8 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
         "polygon": [list(map(float, p.split(","))) for p in POLYGON.split(";")],
         "listings": listings,
         "social": social,
-        "transit": _load_transit(),
+        "transit": _load_extra("transit.json"),
+        "smart": _load_extra("smart.json"),
     }
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     tpl = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", blob)
