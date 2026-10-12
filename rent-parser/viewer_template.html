@@ -524,7 +524,10 @@ function filtered() {
     if (!vis.length) continue;
     // Лучшая цена — среди объявлений, чьи условия не противоречат другим сайтам
     // (Домклик «комиссия ?» при «комиссия 50%» на Яндексе не должен выглядеть дешевле)
-    const contra = (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0));
+    // КУ «оценка» при точной сумме на другом сайте — тоже не берём (Я.Аренда «КУ ~4 000» при «ЖКУ 5 000» на Авито)
+    const kuEst = (x) => !x.post && /оценка/.test(x.kuNote || "") && !/сч[её]тчики/.test(x.kuNote || "");
+    const contra = (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0)) ||
+      (kuEst(x) && vis.some((y) => !y.post && y.kuNote && !kuEst(y)));
     const pool = vis.filter((x) => !contra(x));
     const best = (pool.length ? pool : vis).reduce((a, b) => ((b.total ?? 1e9) < (a.total ?? 1e9) ? b : a));
     if (ui.types.length && !ui.types.includes(g.tkind)) continue;
@@ -631,7 +634,7 @@ function card(r) {
     : g.geo && g.geo.geo && g.geo.geo !== "сайт" ? "координаты по адресу" : "";
   const trip = g.post ? null : tripOf(g);
   const loc = g.post ? [head.zone] : [g.zone, g.km < 99 ? g.km + " км до НВК" : "", trip ? "" : head.travel !== "уточнить" ? head.travel : "", head.metro, geoNote];
-  const nSites = new Set(vis.map((x) => x.srcKey)).size;
+  const nSites = new Set(vis.map((x) => (x.post ? "social" : x.id[0]))).size;   // сайт по ID: Y — Яндекс, A — Авито, D — Домклик
   return `<div class="card${isRent ? " rent" : ""}${m.mark ? " m-" + m.mark : ""}${selected === g.key ? " sel" : ""}" data-g="${esc(g.key)}">
     <div class="top">
       <div>
