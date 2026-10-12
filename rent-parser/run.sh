@@ -14,7 +14,7 @@ python3 rent-parser/smart/smart.py && extra=1 || echo "⚠️  умный фил
 if [ "$extra" = 1 ]; then
   PYTHONPATH=rent-parser:rent-parser/pipeline python3 -c "from export_viewer import export_to_viewer; export_to_viewer()" \
     || echo "⚠️  карта не пересобрана с доп. данными — откроется прежняя"
-  # Новое в ⭐ Топе → список здесь + уведомление macOS со звуком
+  # Новое в ⭐ Топе → список здесь, в терминале
   node rent-parser/smart/top_alert.js || true
 fi
 

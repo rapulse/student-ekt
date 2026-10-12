@@ -7,14 +7,13 @@
  *
  * data/top_seen.json — id объявлений, которые уже бывали в топе. Квартира считается новой, если ни одно
  * её объявление (включая дубли на других сайтах) там не встречалось. Первый запуск только запоминает.
- * Есть новые → список в терминал + уведомление macOS со звуком.
+ * Есть новые → список в терминал (без уведомлений и звука).
  *
  *   node rent-parser/smart/top_alert.js           # обычный режим
- *   node rent-parser/smart/top_alert.js --test    # показать уведомление на текущем топе, ничего не запоминая
+ *   node rent-parser/smart/top_alert.js --test    # показать список на текущем топе, ничего не запоминая
  */
 import fs from "fs";
 import path from "path";
-import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
 import puppeteer from "puppeteer-core";
 
@@ -25,15 +24,6 @@ const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const TEST = process.argv.includes("--test");
 
 const rub = (n) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
-
-function notify(title, text) {
-  const q = (s) => JSON.stringify(String(s));   // строка AppleScript в кавычках с экранированием
-  try {
-    execFileSync("osascript", ["-e", `display notification ${q(text)} with title ${q(title)} sound name "Glass"`]);
-  } catch (e) {
-    process.stdout.write("\x07");   // уведомления недоступны — хотя бы звонок терминала
-  }
-}
 
 (async () => {
   if (!fs.existsSync(MAP)) { console.log("⭐ топ: нет map_all.html — пропускаю"); return; }
@@ -84,7 +74,4 @@ function notify(title, text) {
     if (r.link) console.log(`     ${r.link}`);
   }
   console.log("");
-  const first = fresh[0];
-  notify(`⭐ Новое в топе: ${fresh.length}`,
-    `${SYM[first.tier] || ""} ${kind(first.kind)} · ${first.addr} · ${rub(first.monthly)} ₽` + (fresh.length > 1 ? ` и ещё ${fresh.length - 1}` : ""));
 })().catch((e) => { console.log("⚠️  сигнал по топу не сработал: " + e.message); process.exitCode = 1; });
