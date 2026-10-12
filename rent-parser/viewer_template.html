@@ -84,6 +84,13 @@ main { flex: 1; display: flex; min-height: 0; position: relative; }
 .addr { font-weight: 600; margin-top: 2px; }
 .loc { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .smart { font-size: 13px; margin-top: 3px; }
+.trip summary { cursor: pointer; list-style: none; }
+.trip summary::-webkit-details-marker { display: none; }
+.trip b { color: var(--text); font-weight: 600; }
+.trip > div { margin: 2px 0 0 14px; }
+.trip a { color: var(--accent); }
+.est { color: var(--muted); }
+.dest-pin { background: var(--panel); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; padding: 1px 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .smart b.tA { color: var(--c-arenda); } .smart b.tB { color: var(--ok); } .smart b.tC { color: var(--muted); } .smart b.tX { color: var(--bad); }
 .smart .w { color: var(--bad); }
 .price { text-align: right; white-space: nowrap; }
@@ -330,9 +337,22 @@ const TRANSIT = (DATA.transit && DATA.transit.points) || {};
 const TRANSIT_HOW = (DATA.transit && DATA.transit._meta && DATA.transit._meta.how) || "";
 const tripOf = (g) => (g.lat == null ? null : TRANSIT[g.lat.toFixed(4) + "," + g.lon.toFixed(4)] || null);
 const tripMin = (g) => { const t = tripOf(g); return t && t.min != null ? t.min : 1e9; };
-const tripText = (t) => t.min == null ? "🚌 прямого транспорта нет — уточнить"
-  : t.bus ? `🚌 ~${t.min} мин (оценка): пешком ${t.walk}, ${t.bus}${t.alt ? " / " + t.alt.join(" / ") : ""}`
-  : `🚶 ~${t.min} мин пешком (оценка)`;
+const DESTS = (DATA.transit && DATA.transit._meta && DATA.transit._meta.dests) || { nvk: { name: "НВК" } };
+const tripText = (t) => t.min == null ? "🚌 транспорта рядом нет — уточнить"
+  : t.bus ? `🚌 ~${t.min} мин: пешком ${t.walk}, ${t.bus}${t.alt ? " (или " + t.alt.join(" / ") + ")" : ""}`
+  : `🚶 ~${t.min} мин пешком`;
+const routeLink = (g, pt) => `https://yandex.ru/maps/?rtext=${g.lat},${g.lon}~${pt[0]},${pt[1]}&rtt=mt`;
+/** Время в пути: строка до НВК, по клику — все точки и среднее по весам. */
+function tripBlock(g, t) {
+  const others = Object.entries(DESTS).filter(([k]) => k !== "nvk" && t.dest && t.dest[k]);
+  const head = `<b>НВК</b> ${esc(tripText(t))} <span class="est">(оценка)</span>`;
+  if (!others.length) return `<div class="loc trip" title="${esc(TRANSIT_HOW)}">${head}</div>`;
+  const w = Object.values(DESTS).map((d) => d.w).join(" : ");
+  return `<details class="loc trip" title="${esc(TRANSIT_HOW)}"><summary>${head}${t.wavg != null ? ` · <span class="est">среднее ~${t.wavg} мин ▸</span>` : ""}</summary>` +
+    others.map(([k, d]) => `<div><b>${esc(d.name)}</b> ${esc(tripText(t.dest[k]))} <a href="${routeLink(g, d.pt)}" target="_blank" rel="noopener">маршрут ↗</a></div>`).join("") +
+    (t.wavg != null ? `<div class="est">среднее по весам ${Object.values(DESTS).map((d) => esc(d.name)).join(" : ")} = ${w} → ~${t.wavg} мин; идёт в «⭐ Топ»</div>` : "") +
+    `</details>`;
+}
 const byPrio = (a, b) => SRC[a.srcKey].prio - SRC[b.srcKey].prio || (a.total ?? 1e9) - (b.total ?? 1e9);
 for (const g of groups) {
   g.items.sort(byPrio);
@@ -445,7 +465,8 @@ if (SMART) document.querySelectorAll(".smart-ui").forEach((el) => (el.hidden = f
 function smartRow(r) {
   if (!SMART || r.g.post) return null;
   const N = +ui.months || 3, people = r.g.pair ? 2 : 1, t = tripOf(r.g);
-  const tripPenalty = t && t.min != null ? t.min * TRIP_RUB_PER_MIN : TRIP_MAX * TRIP_RUB_PER_MIN;
+  const tripAvg = t ? (t.wavg ?? t.min) : null;   // среднее по НВК/РТФ/фитнесу с весами, если посчитано
+  const tripPenalty = tripAvg != null ? tripAvg * TRIP_RUB_PER_MIN : TRIP_MAX * TRIP_RUB_PER_MIN;
   let best = null;
   for (const it of r.vis) {
     const s = SMART[it.id];
@@ -616,14 +637,14 @@ function card(r) {
       <div>
         <div class="ttl">${title}</div>
         ${g.post ? "" : `<div class="addr">${esc(head.addr)}</div>`}
-        <div class="loc">${esc(loc.filter(Boolean).join(" · "))}</div>
-        ${typeof smartLine === "function" ? smartLine(r) : ""}
-        ${trip ? `<div class="loc trip" title="${esc(TRANSIT_HOW)}. Точное время — «Маршрут до НВК»">${esc(tripText(trip))}</div>` : ""}
       </div>
       <div class="price"><b>${rub(best.total)}</b> ₽/мес${g.post ? "" : " с КУ"}
         <small>${priceBreak(best)}</small>
         ${vis.length > 1 ? `<small>${vis.length} объявл. · ${nSites} ${nSites === 1 ? "сайт" : "сайта"}</small>` : ""}</div>
     </div>
+    <div class="loc">${esc(loc.filter(Boolean).join(" · "))}</div>
+    ${typeof smartLine === "function" ? smartLine(r) : ""}
+    ${trip ? tripBlock(g, trip) : ""}
     ${g.post ? "" : `<div class="entry">${entryBreak(best)}</div>`}
     <div class="flags">
       ${g.pair ? `<span class="tag pair" title="можно делить аренду: ${esc(g.pair)}">👥 вдвоём — по ${rub(Math.round(best.total / 2))} ₽</span>` : g.post ? "" : '<span class="tag solo">👤 на одного</span>'}
@@ -664,6 +685,9 @@ function leafletMap() {
   L.polygon(DATA.polygon, { color: "#2f6fdb", weight: 2, fillOpacity: 0.04, dashArray: "4 4", interactive: false }).addTo(map);
   L.circle(DATA.nvk, { radius: RENT_KM * 1000, color: cssVar("--c-arenda"), weight: 1, fill: false, dashArray: "2 6", interactive: false }).addTo(map);
   L.marker(DATA.nvk, { title: "Кампус НВК" }).addTo(map).bindPopup("<b>ИРИТ-РТФ, кампус УрФУ «Новокольцовский»</b><br>ул. 100-летия Уральского университета, 5");
+  for (const [k, d] of Object.entries(DESTS)) if (k !== "nvk" && d.pt)
+    L.marker(d.pt, { title: d.name, icon: L.divIcon({ className: "", html: `<span class="dest-pin">${esc(d.name)}</span>`, iconSize: null, iconAnchor: [20, 10] }) })
+      .addTo(map).bindPopup(`<b>${esc(d.name)}</b><br>${esc(d.addr || "")}<br>вес в среднем времени: ${d.w}`);
   const layer = L.layerGroup().addTo(map);
   const markers = {};
   return {
@@ -721,6 +745,9 @@ function yandexMap() {
       { fillOpacity: 0, strokeColor: cssVar("--c-arenda"), strokeWidth: 1, strokeStyle: "shortdash", interactivityModel: "default#transparent" }));
     map.geoObjects.add(new ymaps.Placemark(DATA.nvk, { iconCaption: "ИРИТ-РТФ", balloonContent: "<b>ИРИТ-РТФ, кампус УрФУ «Новокольцовский»</b><br>ул. 100-летия Уральского университета, 5" },
       { preset: "islands#redEducationIcon" }));
+    for (const [k, d] of Object.entries(DESTS)) if (k !== "nvk" && d.pt)
+      map.geoObjects.add(new ymaps.Placemark(d.pt, { iconCaption: d.name, balloonContent: `<b>${esc(d.name)}</b><br>${esc(d.addr || "")}<br>вес в среднем времени: ${d.w}` },
+        { preset: k === "gym" ? "islands#blueSportIcon" : "islands#blueEducationIcon" }));
     // Кластер: число квартир + минимальная цена с КУ
     const ClusterLayout = ymaps.templateLayoutFactory.createClass('<div class="ycl"></div>', {
       build() {
