@@ -15,6 +15,7 @@ python3 "$DIR/build_web.py" "$SITE"
 git -C "$SITE" init -q -b gh-pages
 git -C "$SITE" add -A
 git -C "$SITE" commit -q -m "Карта $(date '+%Y-%m-%d %H:%M')"
-git -C "$SITE" push -q --force "$REMOTE" gh-pages
+# карта ~3 МБ в сжатом виде: без большого буфера git шлёт её кусками, и часть прокси отвечает HTTP 400
+git -C "$SITE" -c http.postBuffer=157286400 push -q --force "$REMOTE" gh-pages
 URL="$(echo "$REMOTE" | sed -E 's#(git@github.com:|https://github.com/)([^/]+)/([^/.]+)(\.git)?#https://\2.github.io/\3/#')"
 echo "🌐 опубликовано: $URL (обновится за 1–2 мин)"
