@@ -104,6 +104,7 @@ body.mapfull .legend.floating { position: fixed; z-index: 2001; }
 .dest-pin { background: var(--panel); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; padding: 1px 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .smart b.tA { color: var(--c-arenda); } .smart b.tB { color: var(--ok); } .smart b.tC { color: var(--muted); } .smart b.tX { color: var(--bad); }
 .smart .w { color: var(--bad); }
+.smart .tsym { font-size: 1.5em; line-height: 0; vertical-align: -0.1em; }
 .mk-lo { color: var(--ok); font-weight: 600; } .mk-hi { color: var(--bad); font-weight: 600; } .mk-eq { color: var(--muted); }
 .price { text-align: right; white-space: nowrap; }
 .price b { font-size: 21px; }
@@ -334,7 +335,16 @@ const FLAGS = [
   ["nodep", "Без залога", (it) => it.dep === 0, (vis) => !vis.some((x) => x.dep > 0)],
   ["nocomm", "Без комиссии", (it) => it.comm === 0, (vis) => !vis.some((x) => x.comm > 0)],
   ["kuinc", "КУ включены", (it) => it.ku === 0],
+  ["cheap", "Ниже рынка", (it) => cheapOk(it), null,
+    "Цена с КУ на 15%+ ниже медианы того же типа рядом. Только надёжные: Ⓐ Я.Аренда или Ⓑ проверено; " +
+    "без «приманок», без объявлений без номера дома и без пометок вроде «возможна комиссия»"],
 ];
+// «Ниже рынка» без мусора: дешёвые Ⓒ и ⚠ иначе забивают всю выдачу. DATA.smart, а не SMART: счётчики считаются раньше
+function cheapOk(it) {
+  const s = DATA.smart && DATA.smart.items && DATA.smart.items[it.id];
+  return !!(s && s.mkt && s.mkt.pct <= -15 && (s.tier === "A" || s.tier === "B")
+    && !s.warn.some((w) => !/^цена на/.test(w)) && !has(it, WARN_BADGE));
+}
 const KEY_BADGE = /росреестр|проверен|подтвержден|собственник|сберid|госуслуг/i;
 const WARN_BADGE = /⚠️|забронирован|возможна комиссия|подозр/i;
 
@@ -479,8 +489,8 @@ function drawControls() {
     const sel = ui[id], open = folds[id];
     const shown = open ? list : list.filter(([k]) => sel.includes(k));
     $(`[data-fold="${id}"]`).textContent = `${open ? "▾" : "▸"} ${id === "types" ? "Тип" : "Важно"}`;
-    $("#" + id).innerHTML = shown.map(([k, l]) =>
-      `<button class="fchip${sel.includes(k) ? " on" : ""}" data-${attr}="${k}">${l}<span class="n">${rub(count[k] || 0)}</span></button>`).join("") +
+    $("#" + id).innerHTML = shown.map(([k, l, , , tip]) =>
+      `<button class="fchip${sel.includes(k) ? " on" : ""}" data-${attr}="${k}"${tip ? ` title="${esc(tip)}"` : ""}>${l}<span class="n">${rub(count[k] || 0)}</span></button>`).join("") +
       (!open && !sel.length ? `<span class="none">${noneText}</span>` : "") +
       (!open && shown.length < list.length ? `<button class="fchip more-chip" data-unfold="${id}">＋ ещё ${list.length - shown.length}</button>` : "");
   };
@@ -516,7 +526,8 @@ function changed() { saveUi(); shown = 150; pinned = null; drawControls(); rende
 const SMART = (DATA.smart && DATA.smart.items) || null;
 const TIER_RANK = { A: 0, B: 1, C: 2, X: 3 };
 // Ⓐ Ⓑ Ⓒ — латиница в кружке (U+24B6…): сразу видно, что это уровень, а не русская «В» или «С»; высоту строки не меняют
-const TIER_LABEL = { A: "Ⓐ Я.Аренда", B: "Ⓑ проверено", C: "Ⓒ без проверок", X: "⚠ похоже на приманку" };
+const TIER_SYM = (c) => `<span class="tsym">${c}</span>`;   // символ крупнее слова, line-height: 1 — строка не растёт
+const TIER_LABEL = { A: `${TIER_SYM("Ⓐ")} Я.Аренда`, B: `${TIER_SYM("Ⓑ")} проверено`, C: `${TIER_SYM("Ⓒ")} без проверок`, X: "⚠ похоже на приманку" };
 const TIER_HELP = "Уровень надёжности: Ⓐ — Яндекс Аренда (без залога и комиссии, собственник проверен); " +
   "Ⓑ — есть проверка (собственник, Росреестр, документы); Ⓒ — отметок проверки нет; ⚠ — похоже на приманку.";
 const TOP_N = 30, TRIP_RUB_PER_MIN = 100, TRIP_MAX = 45;   // 10 мин дороги в одну сторону = +1 000 ₽/мес
