@@ -76,7 +76,11 @@ button, input, select { font: inherit; color: inherit; }
 /* ---------- список и карта ---------- */
 main { flex: 1; display: flex; min-height: 0; position: relative; }
 .legend.floating { position: absolute; right: 10px; bottom: 26px; z-index: 1000; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
-.legend.floating.low { bottom: 10px; }  /* Leaflet: подпись OSM перенесена влево, низ справа свободен */
+.legend.floating.low { bottom: 10px; }
+/* Leaflet: «на весь экран» — карта поверх страницы (+ полноэкранный режим браузера, где он есть) */
+body.mapfull #map { position: fixed !important; inset: 0; z-index: 2000; height: auto; }
+body.mapfull .legend.floating { position: fixed; z-index: 2001; }
+.lfull { font-size: 17px; line-height: 30px; text-align: center; cursor: pointer; }  /* Leaflet: подпись OSM перенесена влево, низ справа свободен */
 #list { width: 52%; max-width: 760px; overflow-y: auto; padding: 12px 12px 40px; }
 #map { flex: 1; min-height: 300px; }
 
@@ -756,6 +760,30 @@ function leafletMap() {
   // подпись OSM обязательна по лицензии — слева внизу, справа внизу легенда
   L.control.attribution({ position: "bottomleft", prefix: '<a href="https://leafletjs.com">Leaflet</a>' }).addTo(map);
   $("#legend").classList.add("low");
+  const Full = L.Control.extend({
+    options: { position: "topright" },
+    onAdd() {
+      const a = L.DomUtil.create("a", "lfull", L.DomUtil.create("div", "leaflet-bar"));
+      a.href = "#"; a.title = "На весь экран"; a.textContent = "⛶";
+      L.DomEvent.disableClickPropagation(a);
+      L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); setFull(!document.body.classList.contains("mapfull")); });
+      return a.parentNode;
+    },
+  });
+  function setFull(on) {
+    document.body.classList.toggle("mapfull", on);
+    const btn = document.querySelector(".lfull");
+    if (btn) { btn.textContent = on ? "✕" : "⛶"; btn.title = on ? "Свернуть (Esc)" : "На весь экран"; }
+    try {
+      if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    } catch (err) {}
+    setTimeout(() => map.invalidateSize(), 50);
+  }
+  // Esc в полноэкранном режиме браузера выходит из него сам — сворачиваем и карту
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("mapfull")) setFull(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("mapfull")) setFull(false); });
+  new Full().addTo(map);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
   L.polygon(DATA.polygon, { color: "#2f6fdb", weight: 2, fillOpacity: 0.04, dashArray: "4 4", interactive: false }).addTo(map);
   L.circle(DATA.nvk, { radius: RENT_KM * 1000, color: cssVar("--c-arenda"), weight: 1, fill: false, dashArray: "2 6", interactive: false }).addTo(map);
