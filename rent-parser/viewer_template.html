@@ -438,7 +438,7 @@ function setGroupMark(g, patch) {
 
 // ---------- состояние фильтров ----------
 const UI_KEY = "nvk-ui-v3";
-const DEFAULT_UI = { top: "off", months: "3", srcs: ["arenda", "ya", "dc", "avito", "social"], types: [], flags: [], where: "zones", maxtotal: "", maxkm: "", budget: true, days: "", marks: "hide-no", sort: "total", showgone: false, q: "" };
+const DEFAULT_UI = { top: "off", months: "3", srcs: ["arenda", "ya", "dc", "avito", "social"], types: ["studio", "1", "2"], flags: [], where: "zones", maxtotal: "", maxkm: "", budget: false, days: "", marks: "all", sort: "total", showgone: false, q: "" };
 let ui = JSON.parse(JSON.stringify(DEFAULT_UI));
 try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {}
 const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
@@ -913,7 +913,7 @@ $("#export").addEventListener("click", () => {
 });
 
 refreshNoFps();
-$("#gen").textContent = "данные от " + DATA.generated;
+$("#gen").textContent = "от " + DATA.generated;
 drawControls();
 render();
 </script>
