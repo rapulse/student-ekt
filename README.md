@@ -128,7 +128,10 @@ map_all.html (OpenStreetMap) · map_yandex.html (Яндекс Карты) → Gi
 ./rent-parser/run.sh --full          # раз в неделю: все страницы, снятые объявления, изменения цен (~1 ч)
 ./rent-parser/run.sh --fast          # без браузера: Яндекс + ВК/TG
 open map_all.html                    # карта локально (OpenStreetMap); map_yandex.html — на Яндекс Картах
+bash rent-parser/publish/publish.sh  # только перевыложить сайт, без сбора
+PUBLISH_MAP=yandex ./rent-parser/run.sh  # на сайт — Яндекс-версию вместо OSM (на один запуск)
 ```
+Сайт обновляется в конце каждого `run.sh`; по умолчанию на нём OSM-карта (подробно — `rent-parser/descr.md`, «Сайт»).
 Нужны python3 с pandas/pyarrow, Node и `npm install` в `rent-parser/` (puppeteer-core), Google Chrome.
 Ключ Яндекс Карт JS API — в `rent-parser/local_keys.json` (`{"yandex_maps_js": "…"}`, не в git).
 Если сайт покажет капчу, в терминале появится подсказка: решить капчу в окне Chrome и нажать Enter.

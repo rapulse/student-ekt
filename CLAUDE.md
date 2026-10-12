@@ -92,7 +92,10 @@
 ./rent-parser/run.sh --geocode-only  # догеокодировать адреса без координат
 open map_all.html                    # посмотреть (OpenStreetMap)
 open map_yandex.html                 # то же на Яндекс Картах (ключ в rent-parser/local_keys.json)
+bash rent-parser/publish/publish.sh  # только перевыложить сайт (OSM), без сбора
+PUBLISH_MAP=yandex ./rent-parser/run.sh  # выложить на сайт Яндекс-версию вместо OSM (на один запуск)
 ```
+Сайт https://rapulse.github.io/student-ekt/ обновляет сам `run.sh` (по умолчанию OSM, см. `rent-parser/descr.md`, «Сайт»).
 Нужен python3 с pandas/pyarrow, Node + `rent-parser/node_modules` (puppeteer-core), Google Chrome.
 
 ## Открытые задачи (следующий чат)
