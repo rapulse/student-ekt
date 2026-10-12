@@ -27,6 +27,36 @@ LEAFLET_HEAD = ('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/
                 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>')
 METER_ESTIMATE = 1_500          # «ЖКУ N ₽ + счётчики»: счётчики сверху — оценка
 MARK_STATUS = {"like": "Интересно", "no": "Отказ"}
+# «25000 + квартплата (лето 3000, зима 6000)», «+ КУ 4 т.р.» — коммуналка сверху по тексту объявления
+KU_PLUS_RX = re.compile(r"\+\s*(?:квар?т\.?\s*плат\w*|ку\b|к\.\s*у\.?|жку\b|коммунал\w*|коммуналк\w*)", re.I)
+KU_STOP_RX = re.compile(r"залог|депозит|комисс|предоплат|страхов", re.I)
+KU_NUM_RX = re.compile(r"(\d+(?:[.,]\d)?)\s*(?:т\.?\s?р|тыс|к\b)|(?<![\d.,])(\d{1,2})[\s\u00a0.]?(\d{3})(?![\d])", re.I)
+
+
+def ku_from_text(text):
+    """(есть ли «+ КУ» в тексте, сумма ₽ или None, фрагмент). Сумма — наибольшая из «лето/зима».
+    «+ КУ по счётчикам» — это только счётчики: ("meters", None, фрагмент)."""
+    m = KU_PLUS_RX.search(text or "")
+    if not m:
+        return False, None, ""
+    win = text[m.end():m.end() + 90]
+    stop = KU_STOP_RX.search(win)
+    win = win[:stop.start()] if stop else win
+    if re.match(r"\s*(?:\(?\s*)?(?:по\s+)?(?:сч[её]тчик|свет|электр|вод)", win, re.I):
+        return "meters", None, ""
+    nums, end = [], None
+    for x in KU_NUM_RX.finditer(win):
+        k, a, b = x.groups()
+        v = float(k.replace(",", ".")) * 1000 if k else int(a + b)
+        if 500 <= v <= 15_000:
+            nums.append(int(v))
+            end = x.end()
+    if end is None:   # цитата — до конца фразы
+        cut = re.search(r"[.;!\n]", win)
+        end = cut.start() if cut else len(win)
+    tail = re.match(r"\s*(?:руб\w*\.?|р\.|₽)?\s*\)?", win[end:])
+    frag = re.sub(r"\s+", " ", text[m.start():m.end() + end + len(tail.group(0))]).strip()[:80]
+    return True, (max(nums) if nums else None), frag
 
 
 def _v(x):
@@ -71,12 +101,24 @@ def costs(r):
     share = 2 if kind == "pair" else 1
     info = (r.get("utilities_info") or "").lower()
     util_inc, util_rub = _v(r.get("utilities_included")), _int(r.get("utilities_rub"))
-    meters_extra = bool(re.search(r"\+\s*сч[её]тчик|сч[её]тчики:\s*оплач", info))
-    if util_inc is True:
+    # «ЖКУ включены без счетчиков» (Авито) = квартплата в цене, счётчики — отдельно
+    meters_extra = bool(re.search(r"\+\s*сч[её]тчик|сч[её]тчики:\s*оплач|без\s+сч[её]тчик", info))
+    plus, text_ku, frag = ku_from_text(r.get("description"))
+    if plus == "meters":
+        plus, meters_extra = False, True
+    if util_inc is True and plus:
+        ku = text_ku or KU_ESTIMATE[kind]
+        ku_note = (f"❓ КУ: в форме «включены», в тексте «{frag}» — уточнить, считаем "
+                   + (f"{ku:,} ₽".replace(",", " ") if text_ku else f"~{ku // 1000}к (оценка)"))
+    elif util_inc is True and meters_extra:
+        ku, ku_note = METER_ESTIMATE, "⚠️ КУ включены, счётчики ~1.5к (оценка)"
+    elif util_inc is True:
         ku, ku_note = 0, "✅ КУ включены"
     elif util_rub is not None:
         ku = util_rub + (METER_ESTIMATE if meters_extra else 0)
         ku_note = f"⚠️ ЖКУ {util_rub:,} ₽".replace(",", " ") + (" + счётчики ~1.5к (оценка)" if meters_extra else "")
+    elif text_ku:
+        ku, ku_note = text_ku, f"⚠️ КУ {text_ku:,} ₽ (из текста)".replace(",", " ")
     else:
         ku = KU_ESTIMATE[kind]
         ku_note = f"⚠️ КУ ~{ku // 1000}к (оценка)"

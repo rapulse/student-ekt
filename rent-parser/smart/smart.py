@@ -36,6 +36,10 @@ CHEAP = 0.75          # цена < 75% медианы того же типа в 
 VERY_CHEAP = 0.55     # так дёшево — подозрительно и без других признаков
 MEDIAN_MIN_N = 10     # «рынок» — медиана цены с КУ того же типа по соседям: берём наименьший радиус,
 MARKET_RADII = (1.5, 2.5, 4, 7)   # где набралось столько разных квартир; не набралось — медиана по городу
+# «Сдаётcя квapтиpa»: латиница вперемешку с кириллицей — обход проверки Авито на одинаковые тексты
+# (перекупщики, агенты под видом собственника). Считаем слова, где есть обе азбуки.
+MIXED_RX = re.compile(r"\b(?=\w*[а-яё])(?=\w*[a-z])\w+\b", re.I)
+MIXED_MIN = 3
 VERIFY_RX = re.compile(r"росреестр|документы проверены|госуслуг|сберid|реквизиты проверены|данные подтверждены|собственник", re.I)
 TERM_TEXT_RX = re.compile(r"(?:от|не менее|минимум|минимальный срок[^.\d]{0,15})\s*(\d{1,2})\s*(?:-?х\s*)?мес|"
                           r"(?:от|не менее|минимум)\s+(?:одного\s+|1\s+)?года", re.I)
@@ -123,9 +127,13 @@ def main():
     for r, c, kind in prep:
         badges = [b for b in (r.get("badges") or "").split(" · ") if b]
         rent = r.get("source_type") == "arenda_program"
-        owner = r.get("author_type") == "собственник"
-        verified = owner or any(VERIFY_RX.search(b) for b in badges)
+        mixed = len(MIXED_RX.findall(r.get("description") or "")) >= MIXED_MIN
+        # «собственник» со слов автора при замаскированном тексте — не проверка (Росреестр и т. п. — да)
+        owner = r.get("author_type") == "собственник" and not mixed
+        verified = owner or any(VERIFY_RX.search(b) and not (mixed and b.lower() == "собственник") for b in badges)
         warn = []
+        if mixed:
+            warn.append("в тексте латиница вместо русских букв — маскировка (перекупщик/агент?)")
         mk = market(kind, r.get("lat"), r.get("lon"))
         ratio = c["total"] / mk[0] if mk and c["total"] else None
         mkt = {"med": round(mk[0]), "pct": round((ratio - 1) * 100), "where": mk[1], "n": mk[2]} if ratio else None
