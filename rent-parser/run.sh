@@ -15,3 +15,6 @@ if [ "$extra" = 1 ]; then
   PYTHONPATH=rent-parser:rent-parser/pipeline python3 -c "from export_viewer import export_to_viewer; export_to_viewer()" \
     || echo "⚠️  карта не пересобрана с доп. данными — откроется прежняя"
 fi
+
+# Карта на GitHub Pages (без чужих телефонов) — если не вышло, локальная карта всё равно готова
+bash rent-parser/publish/publish.sh || echo "⚠️  сайт не обновлён (база и локальная карта готовы)"

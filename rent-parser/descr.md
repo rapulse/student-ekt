@@ -133,6 +133,13 @@
   за сутки / 2 дня / неделю — с количеством в скобках. Журнал прогонов — `data/runs.json`.
   Удобно после ежедневного run.sh: «Новые → с прошлого прогона» + сортировка «цена с КУ».
 
+## Сайт (GitHub Pages)
+- https://rapulse.github.io/student-ekt/ — `map_yandex.html` без чужих телефонов (маска `+7 900 ***-**-67`), с `noindex`.
+- `run.sh` в конце вызывает `rent-parser/publish/publish.sh`: собирает `rent-parser/tmp/site/index.html`
+  (`publish/build_web.py`) и перезаписывает ветку `gh-pages` одним коммитом (без истории). Вход в GitHub — связка ключей macOS.
+- Ключ для сайта: лучше отдельный, с ограничением HTTP Referer на `rapulse.github.io` — `"yandex_maps_js_web"` в `local_keys.json`.
+- Вручную: `bash rent-parser/publish/publish.sh`.
+
 ## Файлы
 - `data/listings.parquet` — вся база (поле `raw_json` — исходные данные сайта без потерь).
 - `data/geocache.json` — кэш координат.

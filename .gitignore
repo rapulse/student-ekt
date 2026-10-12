@@ -18,3 +18,8 @@ data/transit.json
 data/transit_routes.json
 data/*.tmp
 data/smart.json
+
+# личное и архив — только локально
+_tmp/
+CLAUDE.local.md
+reports/
