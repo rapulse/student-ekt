@@ -599,8 +599,12 @@ function smartLine(r) {
 // (Домклик «комиссия ?» при «комиссия 50%» на Яндексе не должен выглядеть дешевле)
 // КУ «оценка» при точной сумме на другом сайте — тоже не берём (Я.Аренда «КУ ~4 000» при «ЖКУ 5 000» на Авито)
 const kuEst = (x) => !x.post && /оценка/.test(x.kuNote || "") && !/сч[её]тчики/.test(x.kuNote || "");
-const contraIn = (vis) => (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0)) ||
-  (kuEst(x) && vis.some((y) => !y.post && y.kuNote && !kuEst(y)));
+// Только против объявлений с той же арендой (±2%): разная аренда — скорее разные квартиры (склейка по дому/этажу/площади
+// бывает ошибочной), тогда вперёд — самое дешёвое, а проверить руками
+const samePrice = (x, y) => Math.abs((y.price || 0) - (x.price || 0)) <= 0.02 * (x.price || 0);
+const contraIn = (vis) => (x) => { const o = vis.filter((y) => y !== x && samePrice(x, y));
+  return (x.comm == null && o.some((y) => y.comm > 0)) || (x.dep == null && o.some((y) => y.dep > 0)) ||
+    (kuEst(x) && o.some((y) => !y.post && y.kuNote && !kuEst(y))); };
 function visibleItems(g) {
   return g.items.filter((it) => ui.srcs.includes(it.srcKey) && (it.active || ui.showgone));
 }
