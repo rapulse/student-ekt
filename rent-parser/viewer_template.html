@@ -9,21 +9,21 @@ __MAP_HEAD__
 :root {
   --bg: #f4f3ef; --panel: #ffffff; --text: #1c1c1a; --muted: #6b6a66; --line: #e2e0da; --soft: #efede8;
   --accent: #2f6fdb; --ok: #1f8a4c; --ok-bg: #e4f3ea; --warn: #b4540e; --warn-bg: #fbeee2; --bad: #c2412d;
-  --c-arenda: #7b4fd6; --c-ya: #e5484d; --c-dc: #1f9d55; --c-avito: #2f6fdb; --c-cian: #0b93a8; --c-social: #d99a00;
+  --c-arenda: #7b4fd6; --c-ya: #e5484d; --c-dc: #1f9d55; --c-avito: #2f6fdb; --c-cian: #d99a00; --c-social: #0b93a8;
   --arenda-bg: #f2ecff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
     --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
-    --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #3cc3d6; --c-social: #f0bb33;
+    --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #f0bb33; --c-social: #3cc3d6;
     --arenda-bg: #2a2140;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
   --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
-  --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #3cc3d6; --c-social: #f0bb33;
+  --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #f0bb33; --c-social: #3cc3d6;
   --arenda-bg: #2a2140;
 }
 * { box-sizing: border-box; }
@@ -858,7 +858,7 @@ function leafletMap() {
 
 // у меток-«растяжек» свой цвет не задать — только готовые цветные пресеты Яндекса
 const STRETCHY = { arenda: "islands#violetStretchyIcon", ya: "islands#redStretchyIcon", dc: "islands#greenStretchyIcon",
-  cian: "islands#lightBlueStretchyIcon", avito: "islands#blueStretchyIcon", social: "islands#yellowStretchyIcon" };
+  cian: "islands#yellowStretchyIcon", avito: "islands#blueStretchyIcon", social: "islands#lightBlueStretchyIcon" };
 function yandexMap() {
   let map = null, om = null, pending = null;
   function draw(rows) {
