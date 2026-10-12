@@ -7,7 +7,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 ROOT="$DIR/../.."
 SITE="$DIR/../tmp/site"
 
-[ -f "$ROOT/map_yandex.html" ] || { echo "⚠️  нет map_yandex.html (нужен ключ в rent-parser/local_keys.json) — не публикую"; exit 1; }
+# PUBLISH_MAP=yandex — опубликовать map_yandex.html вместо map_all.html (OSM), см. build_web.py
+if [ "$PUBLISH_MAP" = "yandex" ]; then MAP=map_yandex.html; else MAP=map_all.html; fi
+[ -f "$ROOT/$MAP" ] || { echo "⚠️  нет $MAP — не публикую"; exit 1; }
 REMOTE="$(git -C "$ROOT" remote get-url origin 2>/dev/null)" || { echo "⚠️  у проекта нет origin — не публикую"; exit 1; }
 
 rm -rf "$SITE"
