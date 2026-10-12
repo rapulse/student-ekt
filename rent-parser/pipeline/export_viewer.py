@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import (DATA, HORIZON_MONTHS, KU_ESTIMATE, NVK, PAIR_MAX, POLYGON, ROOT, RP, SOLO_MAX,
+from config import (DATA, HORIZON_MONTHS, KU_ESTIMATE, NVK, PAIR_MAX, POLYGON, ROOT, RP, SOCIAL_ENABLED, SOLO_MAX,
                     SOLO_TARGET, ZONE_TRAVEL, km, zone_of)
 from dedup import find_duplicates, find_post_duplicates
 from to_parquet import DEFAULT_PARQUET, load_parquet
@@ -130,7 +130,7 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
     rows = [{k: _v(v) for k, v in r.items()} for r in df.to_dict("records")]
     statuses = load_statuses()
     flats = [r for r in rows if r.get("source_type") != "social"]
-    posts = [r for r in rows if r.get("source_type") == "social"]
+    posts = [r for r in rows if r.get("source_type") == "social"] if SOCIAL_ENABLED else []
     dup = find_duplicates([r for r in flats if r.get("is_active") is not False])
     pdup = find_post_duplicates(posts)
     by_id = {r["id"]: r for r in rows}

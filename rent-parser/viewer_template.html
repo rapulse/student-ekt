@@ -9,21 +9,21 @@ __MAP_HEAD__
 :root {
   --bg: #f4f3ef; --panel: #ffffff; --text: #1c1c1a; --muted: #6b6a66; --line: #e2e0da; --soft: #efede8;
   --accent: #2f6fdb; --ok: #1f8a4c; --ok-bg: #e4f3ea; --warn: #b4540e; --warn-bg: #fbeee2; --bad: #c2412d;
-  --c-arenda: #7b4fd6; --c-ya: #e5484d; --c-dc: #1f9d55; --c-avito: #2f6fdb; --c-social: #d99a00;
+  --c-arenda: #7b4fd6; --c-ya: #e5484d; --c-dc: #1f9d55; --c-avito: #2f6fdb; --c-cian: #0b93a8; --c-social: #d99a00;
   --arenda-bg: #f2ecff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
     --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
-    --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-social: #f0bb33;
+    --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #3cc3d6; --c-social: #f0bb33;
     --arenda-bg: #2a2140;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
   --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
-  --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-social: #f0bb33;
+  --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-cian: #3cc3d6; --c-social: #f0bb33;
   --arenda-bg: #2a2140;
 }
 * { box-sizing: border-box; }
@@ -261,11 +261,13 @@ const SRC = {
   arenda: { label: "⭐ Яндекс Аренда", btn: "⭐ Я.Аренда", short: "Яндекс Аренда", css: "--c-arenda", prio: 0 },
   ya: { label: "Яндекс Недвижимость", btn: "Я.Объявл.", short: "Яндекс", css: "--c-ya", prio: 1 },
   dc: { label: "Домклик", short: "Домклик", css: "--c-dc", prio: 2 },
-  avito: { label: "Авито", short: "Авито", css: "--c-avito", prio: 3 },
-  social: { label: "ТГ + ВК", short: "пост", css: "--c-social", prio: 4 },
+  cian: { label: "ЦИАН", short: "ЦИАН", css: "--c-cian", prio: 3 },
+  avito: { label: "Авито", short: "Авито", css: "--c-avito", prio: 4 },
+  social: { label: "ТГ + ВК", short: "пост", css: "--c-social", prio: 5 },
 };
+if (!DATA.social.length) delete SRC.social;   // ВК/Telegram выключены (config.SOCIAL_ENABLED) — без пустой кнопки
 const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const srcOf = (it) => (it.post ? "social" : it.rent ? "arenda" : it.id[0] === "Y" ? "ya" : it.id[0] === "D" ? "dc" : "avito");
+const srcOf = (it) => (it.post ? "social" : it.rent ? "arenda" : it.id[0] === "Y" ? "ya" : it.id[0] === "D" ? "dc" : it.id[0] === "C" ? "cian" : "avito");
 const srcLabel = (it) => (it.post ? (it.src.startsWith("Telegram") ? "Telegram" : "ВК") : it.src === "Авито (Яндекс Аренда)" ? "Яндекс Аренда на Авито" : SRC[srcOf(it)].short);
 
 // ---------- тип жилья ----------
@@ -461,9 +463,12 @@ function setGroupMark(g, patch) {
 
 // ---------- состояние фильтров ----------
 const UI_KEY = "nvk-ui-v3";
-const DEFAULT_UI = { top: "off", months: "3", srcs: ["arenda", "ya", "dc", "avito", "social"], types: ["studio", "1", "2"], flags: [], where: "zones", maxtotal: "", maxkm: "", budget: false, days: "", marks: "all", sort: "total", showgone: false, q: "" };
+const DEFAULT_UI = { top: "off", months: "3", srcs: ["arenda", "ya", "dc", "cian", "avito", "social"], types: ["studio", "1", "2"], flags: [], where: "zones", maxtotal: "", maxkm: "", budget: false, days: "", marks: "all", sort: "total", showgone: false, q: "" };
 let ui = JSON.parse(JSON.stringify(DEFAULT_UI));
 try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {}
+// новый источник включён и у тех, у кого фильтры уже сохранены (до ЦИАН srcSeen не было)
+for (const k of DEFAULT_UI.srcs) if (!(ui.srcSeen || ["arenda", "ya", "dc", "avito", "social"]).includes(k) && !ui.srcs.includes(k)) ui.srcs.push(k);
+ui.srcSeen = DEFAULT_UI.srcs.slice();
 const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
 
 // ---------- панель фильтров ----------
@@ -519,7 +524,7 @@ const safety = $("#safety");
 $("#safety-btn").addEventListener("click", (e) => { e.stopPropagation(); safety.hidden = !safety.hidden; $("#safety-btn").setAttribute("aria-expanded", String(!safety.hidden)); });
 document.addEventListener("click", (e) => { if (!safety.hidden && !e.target.closest(".pop-wrap")) safety.hidden = true; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") safety.hidden = true; });
-$("#reset").addEventListener("click", () => { ui = JSON.parse(JSON.stringify(DEFAULT_UI)); changed(); });
+$("#reset").addEventListener("click", () => { ui = JSON.parse(JSON.stringify(DEFAULT_UI)); ui.srcSeen = DEFAULT_UI.srcs.slice(); changed(); });
 function changed() { saveUi(); shown = 150; pinned = null; drawControls(); render(); }
 
 // ===== УМНЫЙ ФИЛЬТР (rent-parser/smart/smart.py → data/smart.json). Эксперимент: можно удалить блок целиком =====
@@ -721,7 +726,7 @@ function card(r) {
     : g.geo && g.geo.geo && g.geo.geo !== "сайт" ? "координаты по адресу" : "";
   const trip = g.post ? null : tripOf(g);
   const loc = g.post ? [head.zone] : [g.zone, g.km < 99 ? g.km + " км до НВК" : "", trip ? "" : head.travel !== "уточнить" ? head.travel : "", head.metro, geoNote];
-  const nSites = new Set(vis.map((x) => (x.post ? "social" : x.id[0]))).size;   // сайт по ID: Y — Яндекс, A — Авито, D — Домклик
+  const nSites = new Set(vis.map((x) => (x.post ? "social" : x.id[0]))).size;   // сайт по ID: Y — Яндекс, A — Авито, D — Домклик, C — ЦИАН
   return `<div class="card${isRent ? " rent" : ""}${m.mark ? " m-" + m.mark : ""}${selected === g.key ? " sel" : ""}" data-g="${esc(g.key)}">
     <div class="top">
       <div>
@@ -853,7 +858,7 @@ function leafletMap() {
 
 // у меток-«растяжек» свой цвет не задать — только готовые цветные пресеты Яндекса
 const STRETCHY = { arenda: "islands#violetStretchyIcon", ya: "islands#redStretchyIcon", dc: "islands#greenStretchyIcon",
-  avito: "islands#blueStretchyIcon", social: "islands#yellowStretchyIcon" };
+  cian: "islands#lightBlueStretchyIcon", avito: "islands#blueStretchyIcon", social: "islands#yellowStretchyIcon" };
 function yandexMap() {
   let map = null, om = null, pending = null;
   function draw(rows) {

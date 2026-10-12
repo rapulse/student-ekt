@@ -4,8 +4,9 @@
 Запуск (из корня проекта):
     ./rent-parser/run.sh                 # обычный прогон: только новое (по дате, пока есть новые ID)
     ./rent-parser/run.sh --full          # полный проход всех страниц (первый раз / раз в неделю)
-    ./rent-parser/run.sh --fast          # без браузера: Яндекс + ВК/Telegram (~1–2 мин)
-    ./rent-parser/run.sh --only avito    # один источник: yandex, avito, domclick, social
+    ./rent-parser/run.sh --fast          # без браузера: только Яндекс (~1 мин)
+    ./rent-parser/run.sh --only avito    # один источник: yandex, avito, domclick, cian
+    ./rent-parser/run.sh --only social   # ВК/Telegram: выключены (12.10.2026 — мало толку, много скама), только так
     ./rent-parser/run.sh --geocode-only  # только догеокодировать адреса без координат
 
 Источник, которого ещё нет в базе, автоматически проходится полностью.
@@ -31,8 +32,8 @@ from social import scrape_telegram, scrape_vk  # noqa: E402
 from to_parquet import DEFAULT_PARQUET, family, known_map, load_parquet, upsert_listings  # noqa: E402
 from yandex import SEARCHES, scrape_yandex  # noqa: E402
 
-SOURCES = ["yandex", "social", "domclick", "avito"]
-FAMILY = {"yandex": "Y", "avito": "A", "domclick": "D"}
+SOURCES = ["yandex", "domclick", "cian", "avito"]      # по умолчанию; "social" — только через --only
+FAMILY = {"yandex": "Y", "avito": "A", "domclick": "D", "cian": "C"}
 
 
 def log(msg):
@@ -72,8 +73,8 @@ def run_node(script, mode, known, extra=()):
 def main():
     ap = argparse.ArgumentParser(description="Сбор аренды в Екатеринбурге")
     ap.add_argument("--full", action="store_true", help="полный проход всех страниц всех источников")
-    ap.add_argument("--fast", action="store_true", help="без браузера (Яндекс + ВК/Telegram)")
-    ap.add_argument("--only", help="через запятую: " + ",".join(SOURCES))
+    ap.add_argument("--fast", action="store_true", help="без браузера (только Яндекс)")
+    ap.add_argument("--only", help="через запятую: " + ",".join(SOURCES) + " (и social — ВК/Telegram, выключены)")
     ap.add_argument("--geocode-limit", type=int, default=100, help="запросов к геокодеру за прогон (~4 с каждый)")
     ap.add_argument("--geocode-only", action="store_true", help="только догеокодировать адреса без координат (без лимита)")
     ap.add_argument("--max-enrich", type=int, help="сколько карточек Авито открыть за прогон")
@@ -83,13 +84,13 @@ def main():
     log("=" * 60 + f"\n🏠 rent-parser · {datetime.now():%d.%m.%Y %H:%M}\n" + "=" * 60)
     backup_old_schema()
     db = load_parquet(DEFAULT_PARQUET)
-    have = {f: int((db["id"].map(family) == f).sum()) for f in ("Y", "A", "D", "TG", "VK")}
+    have = {f: int((db["id"].map(family) == f).sum()) for f in ("Y", "A", "D", "C", "TG", "VK")}
     only = set(args.only.split(",")) if args.only else set(SOURCES)
     if args.geocode_only:
         only = set()
         args.geocode_limit = 100_000
     if args.fast:
-        only -= {"avito", "domclick"}
+        only -= {"avito", "domclick", "cian"}
     wants = {rid for rid, (st, _) in load_statuses().items() if st == "Интересно"}
 
     def mode_for(fam):
@@ -124,6 +125,15 @@ def main():
         if m == "full" and ok:
             complete.add("D")
         summary.append(("Домклик", len(items), m))
+
+    if "cian" in only:
+        m = mode_for("C")
+        log(f"\n--- ЦИАН ({m}) ---")
+        items, ok = run_node("cian.js", m, known_map(db, "C"))
+        records += items
+        if m == "full" and ok:
+            complete.add("C")
+        summary.append(("ЦИАН", len(items), m))
 
     if "avito" in only:
         m = mode_for("A")

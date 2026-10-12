@@ -33,8 +33,8 @@ STICKY_TRUE = {"enriched"}
 
 
 def family(rid):
-    """Источник по префиксу ID: Y — Яндекс, A — Авито, D — Домклик, TG_/VK_ — посты."""
-    for p in ("TG_", "VK_", "Y", "A", "D"):
+    """Источник по префиксу ID: Y — Яндекс, A — Авито, D — Домклик, C — ЦИАН, TG_/VK_ — посты."""
+    for p in ("TG_", "VK_", "Y", "A", "D", "C"):
         if rid.startswith(p):
             return p.rstrip("_")
     return "?"
