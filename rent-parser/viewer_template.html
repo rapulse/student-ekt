@@ -156,6 +156,14 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
 .legend.open .legend-btn { margin-bottom: 2px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
 .leaflet-popup-content { font-size: 13px; }
+/* Leaflet: метка-«растяжка» с ценой и кластер «N / от Xк» — как на Яндекс Картах */
+.lpin { position: absolute; transform: translate(-50%, calc(-100% - 7px)); white-space: nowrap; background: #fff; color: #222;
+  border: 2px solid var(--pc); border-radius: 10px; padding: 1px 7px; font: 600 12px/1.4 system-ui, sans-serif; box-shadow: 0 1px 3px #0005; cursor: pointer; }
+.lpin::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -5px; border: 5px solid transparent; border-top: 6px solid var(--pc); }
+.lpin.like { box-shadow: 0 0 0 3px var(--ok); }
+.lcl { width: 44px; height: 44px; border-radius: 50%; background: #9a9a9a; border: 6px solid #fffd; box-shadow: 0 0 0 1px #0002;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; color: #222; font: 700 12px/1.05 system-ui, sans-serif; box-sizing: border-box; cursor: pointer; }
+.lcl small { font-size: 9px; font-weight: 600; }
 
 @media (max-width: 860px) {
   main { flex-direction: column-reverse; }
@@ -735,7 +743,7 @@ function popupHtml(r) {
     r.vis.map((x) => `<a href="${safeUrl(x.link)}" target="_blank" rel="noopener">${esc(srcLabel(x))} ${rub(x.price)} ↗</a>`).join(" · ");
 }
 $("#legend").innerHTML = `<button class="legend-btn" id="legend-btn">Легенда ▴</button><div class="legend-body">` + Object.entries(SRC).filter(([k]) => k !== "social").map(([, s]) => `<div><i style="background:var(${s.css})"></i>${esc(s.label)}</div>`).join("") +
-  `<div style="color:var(--muted)">цвет — лучший источник квартиры<br>${MAP_MODE === "yandex" ? "на метке: ₽/мес с КУ · 👥 вдвоём · ✓ интересно" : "зелёное кольцо — «интересно»"}</div></div>`;
+  `<div style="color:var(--muted)">цвет — лучший источник квартиры<br>на метке: ₽/мес с КУ · 👥 вдвоём · ✓ интересно<br>кружок: N квартир, от X тыс.; клик в одном доме — список</div></div>`;
 $("#legend-btn").addEventListener("click", () => {
   const open = $("#legend").classList.toggle("open");
   $("#legend-btn").textContent = open ? "Легенда ▾" : "Легенда ▴";
@@ -751,23 +759,49 @@ function leafletMap() {
   for (const [k, d] of Object.entries(DESTS)) if (k !== "nvk" && d.pt)
     L.marker(d.pt, { title: d.name, icon: L.divIcon({ className: "", html: `<span class="dest-pin">${esc(d.name)}</span>`, iconSize: null, iconAnchor: [20, 10] }) })
       .addTo(map).bindPopup(`<b>${esc(d.name)}</b><br>${esc(d.addr || "")}<br>вес в среднем времени: ${d.w}`);
-  const layer = L.layerGroup().addTo(map);
+  // Кластеры: до 14-го масштаба — как у Яндекса (48 px), ближе — только почти совпадающие точки (один дом)
+  const layer = L.markerClusterGroup({
+    maxClusterRadius: (z) => (z <= 14 ? 48 : 8), showCoverageOnHover: false, spiderfyOnMaxZoom: false,
+    zoomToBoundsOnClick: false, chunkedLoading: true,
+    iconCreateFunction(c) {
+      const prices = c.getAllChildMarkers().map((m) => m.options.price).filter((x) => x > 0);
+      return L.divIcon({ className: "", iconSize: [44, 44],
+        html: `<div class="lcl">${c.getChildCount()}${prices.length ? `<small>от ${Math.round(Math.min(...prices) / 1000)}к</small>` : ""}</div>` });
+    },
+  }).addTo(map);
+  // Клик по кластеру: точки в одном доме → список только этих квартир; иначе приблизить, чтобы разошлись
+  layer.on("clusterclick", (e) => {
+    const ms = e.layer.getAllChildMarkers(), b = L.latLngBounds(ms.map((m) => m.getLatLng()));
+    if (b.getNorth() - b.getSouth() < 0.0003 && b.getEast() - b.getWest() < 0.0005) pinTo(ms.map((m) => m.options.key), "в этом доме");
+    else map.fitBounds(b, { padding: [60, 60], maxZoom: 18 });
+  });
   const markers = {};
   return {
     draw(rows) {
       layer.clearLayers();
       for (const k in markers) delete markers[k];
+      const mks = [];
       for (const r of sortPts(rows)) {
         const liked = groupMark(r.g).mark === "like";
-        const mk = L.circleMarker([r.g.lat, r.g.lon], {
-          radius: r.vis[0].srcKey === "arenda" ? 8 : 6, color: liked ? cssVar("--ok") : "#fff", weight: liked ? 3 : 1.5,
-          fillColor: cssVar(SRC[r.vis[0].srcKey].css), fillOpacity: 0.9,
-        }).bindPopup(() => popupHtml(r)).on("click", () => select(r.g.key, false));
-        mk.addTo(layer);
+        // подпись у точки: цена в месяц с КУ, 👥 — можно вдвоём, ✓ — «интересно»
+        const label = `${rub(r.best.total)}${r.g.pair ? " 👥" : ""}${liked ? " ✓" : ""}`;
+        const mk = L.marker([r.g.lat, r.g.lon], {
+          key: r.g.key, price: r.best.total || 0,
+          icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [0, 0],
+            html: `<div class="lpin${liked ? " like" : ""}" style="--pc:var(${SRC[r.vis[0].srcKey].css})">${label}</div>` }),
+          title: `${TYPE_LABEL[r.g.tkind] || ""} · ${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · можно вдвоём" : ""}`,
+        }).bindPopup(() => popupHtml(r), { offset: [0, -22] }).on("click", () => select(r.g.key, false));
+        mks.push(mk);
         markers[r.g.key] = mk;
       }
+      layer.addLayers(mks);
     },
-    fly(key) { const mk = markers[key]; if (mk) { map.flyTo(mk.getLatLng(), Math.max(map.getZoom(), 15)); mk.openPopup(); } },
+    fly(key) {
+      const mk = markers[key];
+      if (!mk) return;
+      map.flyTo(mk.getLatLng(), Math.max(map.getZoom(), 16));
+      map.once("moveend", () => layer.zoomToShowLayer(mk, () => mk.openPopup()));
+    },
   };
 }
 

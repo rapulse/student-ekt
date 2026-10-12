@@ -22,7 +22,9 @@ OUT_YANDEX = ROOT / "map_yandex.html"     # та же страница на Ян
 TEMPLATE = RP / "viewer_template.html"
 KEYS = RP / "local_keys.json"             # {"yandex_maps_js": "…"} — не в git
 LEAFLET_HEAD = ('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">\n'
-                '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>')
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>\n'
+                '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">\n'
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>')
 METER_ESTIMATE = 1_500          # «ЖКУ N ₽ + счётчики»: счётчики сверху — оценка
 MARK_STATUS = {"like": "Интересно", "no": "Отказ"}
 
