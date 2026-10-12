@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аренда у НВК</title>
+__MAP_HEAD__
+<style>
+:root {
+  --bg: #f4f3ef; --panel: #ffffff; --text: #1c1c1a; --muted: #6b6a66; --line: #e2e0da; --soft: #efede8;
+  --accent: #2f6fdb; --ok: #1f8a4c; --ok-bg: #e4f3ea; --warn: #b4540e; --warn-bg: #fbeee2; --bad: #c2412d;
+  --c-arenda: #7b4fd6; --c-ya: #e5484d; --c-dc: #1f9d55; --c-avito: #2f6fdb; --c-social: #d99a00;
+  --arenda-bg: #f2ecff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
+    --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
+    --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-social: #f0bb33;
+    --arenda-bg: #2a2140;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #201f1e; --text: #ecebe7; --muted: #a09f9a; --line: #353432; --soft: #2a2928;
+  --accent: #6b9cf0; --ok: #4cc27f; --ok-bg: #1b3326; --warn: #f0a35e; --warn-bg: #3a2817; --bad: #ef7a63;
+  --c-arenda: #b08ae8; --c-ya: #f2676b; --c-dc: #45c07a; --c-avito: #6b9cf0; --c-social: #f0bb33;
+  --arenda-bg: #2a2140;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ---------- шапка и фильтры ---------- */
+.bar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.bar h1 { font-size: 17px; margin: 0 6px 0 0; }
+.gen { color: var(--muted); font-size: 12px; }
+.grow { flex: 1; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.info { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font: italic 600 12px Georgia, serif; cursor: help; }
+.info:hover, .info:focus { border-color: var(--accent); color: var(--accent); }
+
+.srcs { display: flex; flex-wrap: wrap; gap: 8px; }
+.src { display: inline-flex; align-items: center; gap: 6px; border: 2px solid var(--line); background: var(--panel); border-radius: 9px; padding: 3px 9px; cursor: pointer; font-weight: 600; }
+.src .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.src .n { color: var(--muted); font-weight: 400; font-size: 12px; }
+.src.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--panel)); }
+.src:not(.on) { opacity: .6; }
+
+.row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.fold { border: none; background: none; padding: 3px 0; cursor: pointer; white-space: nowrap; }
+.fold:hover { color: var(--accent); }
+.fchip.more-chip { color: var(--muted); border-style: dashed; }
+.chips .none { color: var(--muted); font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.fchip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 13px; }
+.fchip .n { color: var(--muted); font-size: 11px; margin-left: 3px; }
+.fchip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fchip.on .n { color: #fff; opacity: .8; }
+.ctl { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; border: 1px solid transparent; border-radius: 9px; padding: 2px 5px; }
+.ctl.active { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.ctl.active select, .ctl.active input[type=number], .ctl.active input[type=search] { border-color: var(--accent); }
+.ctl select, .ctl input[type=number], .ctl input[type=search] { background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; color: var(--text); }
+.ctl input[type=number] { width: 84px; }
+.ctl input[type=search] { width: 190px; }
+.count { color: var(--muted); font-size: 13px; }
+
+/* ---------- список и карта ---------- */
+main { flex: 1; display: flex; min-height: 0; position: relative; }
+.legend.floating { position: absolute; right: 10px; bottom: 26px; z-index: 1000; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+#list { width: 52%; max-width: 760px; overflow-y: auto; padding: 12px 12px 40px; }
+#map { flex: 1; min-height: 300px; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.card.rent { background: var(--arenda-bg); border-color: color-mix(in srgb, var(--c-arenda) 50%, var(--line)); }
+.card.m-like { box-shadow: inset 4px 0 0 var(--ok); }
+.card.m-no { opacity: .45; }
+.top { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; }
+.ttl { font-size: 16px; font-weight: 700; }
+.ttl .type { display: inline-block; background: var(--text); color: var(--panel); border-radius: 6px; padding: 0 6px; margin-right: 6px; font-size: 14px; }
+.addr { font-weight: 600; margin-top: 2px; }
+.loc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.price { text-align: right; white-space: nowrap; }
+.price b { font-size: 21px; }
+.price small { display: block; color: var(--muted); font-size: 12px; }
+.flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.tag { font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--soft); }
+.tag.ok { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+.tag.warn { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.tag.new { background: var(--accent); color: #fff; }
+.tag.down { background: var(--ok); color: #fff; }
+
+.offers { margin-top: 10px; border-top: 1px solid var(--line); }
+.offer { padding: 7px 0; border-bottom: 1px dashed var(--line); }
+.offer:last-child { border-bottom: 0; }
+.offer.gone { opacity: .5; }
+.o1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--c); }
+.pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.o1 .p { font-weight: 700; }
+.o1 .pp { color: var(--muted); font-size: 13px; }
+.g { color: var(--ok); font-weight: 600; }
+.w { color: var(--warn); font-weight: 600; }
+.r { color: var(--bad); font-weight: 600; }
+.q { color: var(--muted); }
+.entry { font-size: 13px; margin-top: 6px; }
+.entry b { font-size: 14px; }
+.tag.pair { background: var(--ok); color: #fff; font-weight: 700; }
+.tag.solo { background: var(--soft); color: var(--muted); }
+.o1 a { margin-left: auto; color: var(--accent); text-decoration: none; font-size: 13px; white-space: nowrap; }
+.o2 { font-size: 13px; margin-top: 2px; }
+.o3 { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.id { font-family: ui-monospace, Menlo, monospace; cursor: copy; border-bottom: 1px dotted var(--muted); }
+details.desc { font-size: 13px; margin-top: 6px; color: var(--muted); }
+details.desc summary { cursor: pointer; }
+details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; max-height: 320px; overflow: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+.actions a, .actions button { font-size: 13px; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px; cursor: pointer; text-decoration: none; }
+.actions button.on-like { background: var(--ok); color: #fff; border-color: var(--ok); }
+.actions button.on-no { background: var(--bad); color: #fff; border-color: var(--bad); }
+.actions input { flex: 1; min-width: 140px; font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; }
+.post-text { font-size: 13px; white-space: pre-wrap; margin-top: 6px; }
+.pinbar { display: flex; align-items: center; gap: 10px; background: var(--accent); color: #fff; border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; cursor: pointer; font-weight: 600; }
+.pinbar span { margin-left: auto; font-weight: 400; opacity: .9; }
+.ycl { text-align: center; line-height: 1.05; font-weight: 700; font-size: 12px; color: #333; }
+.ycl small { display: block; font-size: 9px; font-weight: 600; }
+.more { display: block; margin: 10px auto; border: 1px solid var(--line); background: var(--panel); color: var(--accent); border-radius: 8px; padding: 7px 16px; cursor: pointer; }
+.empty { color: var(--muted); padding: 30px; text-align: center; }
+.legend { background: var(--panel); color: var(--text); padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.8; }
+.legend-btn { border: none; background: none; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
+.legend:not(.open) .legend-body { display: none; }
+.legend.open .legend-btn { margin-bottom: 2px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.leaflet-popup-content { font-size: 13px; }
+
+@media (max-width: 860px) {
+  main { flex-direction: column-reverse; }
+  #list { width: 100%; max-width: none; padding: 10px 16px 40px; }
+  #map { flex: none; height: 38vh; }
+  .ctl input[type=search] { width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <h1>Аренда у НВК</h1>
+  <span class="gen" id="gen"></span>
+  <div class="srcs" id="srcs"></div>
+  <span class="grow"></span>
+  <button class="btn" id="reset">Сбросить фильтры</button>
+  <span class="info" tabindex="0" title="Отметки «интересно / отказ» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
+  <button class="btn" id="export" hidden title="Скачать отметки в «Загрузки»: следующий прогон перенесёт их в базу и дозагрузит карточки «интересных»">Выгрузить отметки</button>
+</div>
+
+<div class="bar">
+  <div class="row"><button class="lbl fold" data-fold="types"></button><div class="chips" id="types"></div></div>
+  <div class="row"><button class="lbl fold" data-fold="flags"></button><div class="chips" id="flags"></div></div>
+</div>
+
+<div class="bar">
+  <label class="ctl">Где <select id="where">
+    <option value="zones">зоны НВК + Аренда до 7 км</option><option value="poly">только полигон</option>
+    <option value="geo">весь город (на карте)</option><option value="all">всё, и без координат</option></select></label>
+  <label class="ctl">до <input type="number" id="maxtotal" step="1000" placeholder="₽/мес"> ₽/мес с КУ</label>
+  <label class="ctl">до <input type="number" id="maxkm" step="1" placeholder="км"> км</label>
+  <label class="ctl" title="одному — до 30 000 ₽/мес с КУ; вдвоём (👥) — до 60 000"><input type="checkbox" id="budget"> в бюджете</label>
+  <label class="ctl">Новые <select id="days"></select></label>
+  <label class="ctl">Отметки <select id="marks"><option value="hide-no">скрыть «отказ»</option><option value="like">только «интересно»</option><option value="all">все</option></select></label>
+  <label class="ctl">Сортировка <select id="sort"><option value="total">цена с КУ</option><option value="entry">въезд</option><option value="km">ближе к НВК</option><option value="trip">быстрее до НВК</option><option value="new">новые</option><option value="drop">подешевели</option><option value="many">на нескольких сайтах</option></select></label>
+  <label class="ctl"><input type="checkbox" id="showgone"> + снятые</label>
+  <label class="ctl"><input type="search" id="q" placeholder="улица, ID, слово"></label>
+  <span class="grow"></span>
+  <span class="count" id="count"></span>
+</div>
+
+<main>
+  <div id="list"></div>
+  <div id="map"></div>
+  <div class="legend floating" id="legend"></div>
+</main>
+
+<script>
+const DATA = __DATA__;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const rub = (n) => (n == null ? "?" : Math.round(n).toLocaleString("ru-RU"));
+const safeUrl = (u) => (/^https:\/\//.test(u || "") ? u : "#");
+const RENT_KM = 7;
+
+// ---------- источники ----------
+const SRC = {
+  arenda: { label: "⭐ Яндекс Аренда", btn: "⭐ Я.Аренда", short: "Яндекс Аренда", css: "--c-arenda", prio: 0 },
+  ya: { label: "Яндекс Недвижимость", btn: "Я.Объявл.", short: "Яндекс", css: "--c-ya", prio: 1 },
+  dc: { label: "Домклик", short: "Домклик", css: "--c-dc", prio: 2 },
+  avito: { label: "Авито", short: "Авито", css: "--c-avito", prio: 3 },
+  social: { label: "ТГ + ВК", short: "пост", css: "--c-social", prio: 4 },
+};
+const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const srcOf = (it) => (it.post ? "social" : it.rent ? "arenda" : it.id[0] === "Y" ? "ya" : it.id[0] === "D" ? "dc" : "avito");
+const srcLabel = (it) => (it.post ? (it.src.startsWith("Telegram") ? "Telegram" : "ВК") : it.src === "Авито (Яндекс Аренда)" ? "Яндекс Аренда на Авито" : SRC[srcOf(it)].short);
+
+// ---------- тип жилья ----------
+const TYPES = [["studio", "Студия"], ["1", "1к"], ["2", "2к"], ["3", "3к"], ["4", "4к+"], ["room", "Комната"]];
+function typeOf(it) {
+  const c = it.type || "";
+  if (c === "Комната") return "room";
+  if (c === "Студия" || it.rooms === 0) return "studio";
+  const n = parseInt(c, 10) || it.rooms;
+  if (n >= 4) return "4";
+  if (n >= 1) return String(n);
+  return "";
+}
+function guessPostType(t) {
+  const s = (t || "").toLowerCase();
+  if (/студи/.test(s)) return "studio";
+  if (/подселен|сда[её]тся:?\s*комнат|сдам:?\s*комнат|комната в \d|^комната|:\s*комната\b/.test(s)) return "room";
+  if (/однокомнат|(?:^|[^\d])1[- ]?(?:к\b|комн|-?ка\b)/.test(s)) return "1";
+  if (/двухкомнат|двушк|(?:^|[^\d])2[- ]?(?:х\s*)?(?:к\b|комн)/.test(s)) return "2";
+  if (/тр[её]хкомнат|(?:^|[^\d])3[- ]?(?:х\s*)?(?:к\b|комн)/.test(s)) return "3";
+  return "";
+}
+const TYPE_LABEL = Object.fromEntries(TYPES);
+
+// ---------- можно ли жить вдвоём (делить аренду) ----------
+const ONLY_ONE = /только одному|только для одного|одному человеку|для одного человека|на одного человека|строго 1 человек|1 человека/i;
+function pairOf(it) {
+  const text = (it.desc || it.text || "").toLowerCase();
+  if (ONLY_ONE.test(text)) return "";
+  if (["2", "3", "4"].includes(it.tkind)) return it.tkind === "2" ? "2 комнаты" : "3+ комнаты";
+  if (it.tkind === "1" && (+it.area || 0) >= 35 && /евро-?\s?двушк|евро-?2|кухн[яеию]-гостин/.test(text)) return "евродвушка";
+  return "";
+}
+const BUDGET_SOLO = 30000, BUDGET_PAIR = 60000;
+const inBudget = (it) => it.total != null && it.total <= (it.pair ? BUDGET_PAIR : BUDGET_SOLO);
+const entrySum = (it) => (it.price || 0) + (it.dep || 0) + (it.comm || 0);
+const entryUnknown = (it) => it.dep == null || it.comm == null;
+function money(v, cls) { return `<span class="${cls}">${rub(v)}</span>`; }
+/** «аренда 20 000 + КУ ~4 000 (оценка)» / «аренда 20 000 · КУ 0 — включены» — как на сайте */
+function priceBreak(it) {
+  if (it.post) return "цена из поста";
+  if (it.ku === 0) return `аренда ${rub(it.price)} · <span class="g">КУ 0 — включены</span>`;
+  if (/счётчики/.test(it.kuNote || "")) return `аренда ${rub(it.price)} + ЖКУ ${rub(it.ku - 1500)} + счётчики ~1 500 (оценка)`;
+  if (/оценка/.test(it.kuNote || "")) return `аренда ${rub(it.price)} + КУ ~${rub(it.ku)} (оценка)`;
+  return `аренда ${rub(it.price)} + ЖКУ ${rub(it.ku)}`;
+}
+/** «Въезд 50 000 = аренда 20 000 + залог 20 000 + комиссия 10 000» */
+function entryBreak(it) {
+  if (it.post) return "";
+  const dep = it.dep == null ? '<span class="q">залог ?</span>' : it.dep === 0 ? '<span class="g">без залога</span>' : `залог ${money(it.dep, "w")}`;
+  const com = it.comm == null ? '<span class="q">комиссия ?</span>' : it.comm === 0 ? '<span class="g">без комиссии</span>' : `комиссия ${money(it.comm, "r")}`;
+  const pm = (it.terms || "").match(/комиссия (\d+)%/);
+  const pct = it.comm > 0 && pm ? ` (${pm[1]}%)` : "";
+  const src = it.srcKey === "dc" && (it.dep || it.comm) ? ' <span class="q">· из текста</span>' : "";
+  return `Въезд <b>${rub(entrySum(it))}${entryUnknown(it) ? "+?" : ""} ₽</b> = аренда ${rub(it.price)} + ${dep} + ${com}${pct}${src}`;
+}
+
+// ---------- «важные» отметки (фильтры: нужно хотя бы у одного объявления квартиры) ----------
+const has = (it, rx) => it.badges && it.badges.some((b) => rx.test(b));
+const FLAGS = [
+  ["pair", "👥 Можно вдвоём", (it) => !!it.pair],
+  ["ros", "Проверено в Росреестре", (it) => it.rosreestr],
+  ["docs", "Документы проверены", (it) => has(it, /документы проверены/i)],
+  ["req", "Реквизиты проверены", (it) => has(it, /реквизиты проверены/i)],
+  ["id", "Личность подтверждена", (it) => has(it, /данные подтверждены|сберid|госуслуг|проверенный собственник/i)],
+  ["owner", "Собственник", (it) => it.owner],
+  ["nodep", "Без залога", (it) => it.dep === 0, (vis) => !vis.some((x) => x.dep > 0)],
+  ["nocomm", "Без комиссии", (it) => it.comm === 0, (vis) => !vis.some((x) => x.comm > 0)],
+  ["kuinc", "КУ включены", (it) => it.ku === 0],
+];
+const KEY_BADGE = /росреестр|проверен|подтвержден|собственник|сберid|госуслуг/i;
+const WARN_BADGE = /⚠️|забронирован|возможна комиссия|подозр/i;
+
+// ---------- данные: объявления + посты → «квартиры» (группы дублей) ----------
+const today = new Date(DATA.generated.slice(0, 10));
+const ageDays = (d) => (d ? (today - new Date(d)) / 864e5 : 1e9);
+// «Новое» — добавлено в базу после первого (базового) сбора: у таких есть точное время addedAt.
+const NOW = new Date(DATA.generated.replace(" ", "T"));
+const addedAge = (it) => (it.addedAt ? (NOW - new Date(it.addedAt.replace(" ", "T"))) / 864e5 : 1e9);
+const fromLastRun = (it) => !!it.addedAt && (!DATA.prevRun || it.addedAt > DATA.prevRun);
+const ddmm = (s) => (s ? s.slice(8, 10) + "." + s.slice(5, 7) : "");
+// Дата поста: Telegram — ISO, ВК — «сегодня в 16:59», «вчера…», «30 авг в 15:38», «12 дек 2025»
+const MON = { янв: 0, фев: 1, мар: 2, апр: 3, мая: 4, май: 4, июн: 5, июл: 6, авг: 7, сен: 8, окт: 9, ноя: 10, дек: 11 };
+const POST_MAX_DAYS = 60;
+function postDate(s) {
+  if (!s) return null;
+  if (/^\d{4}-\d\d-\d\d/.test(s)) return s.slice(0, 10);
+  const t = s.toLowerCase();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  if (t.startsWith("сегодня")) return iso(today);
+  if (t.startsWith("вчера")) return iso(new Date(today - 864e5));
+  const m = t.match(/(\d{1,2})\s+([а-я]{3})[а-я]*\.?(?:\s+(\d{4}))?/);
+  if (!m || MON[m[2]] == null) return null;
+  const y = m[3] ? +m[3] : today.getFullYear();
+  let d = new Date(Date.UTC(y, MON[m[2]], +m[1]));
+  if (!m[3] && d > today) d = new Date(Date.UTC(y - 1, MON[m[2]], +m[1]));
+  return iso(d);
+}
+const items = DATA.listings.map((it) => ({ ...it, srcKey: srcOf(it), tkind: typeOf(it) }));
+for (const it of items) it.pair = pairOf(it);
+for (const s of DATA.social) {
+  const pd = postDate(s.date);
+  const old = pd && ageDays(pd) > POST_MAX_DAYS;
+  items.push({
+    id: s.id, post: true, src: s.src, link: s.link, srcKey: "social", tkind: guessPostType(s.text),
+    addr: s.addr || "", text: s.text, price: s.price, pp: s.price, total: s.price, share: 1, km: 99, lat: null, lon: null,
+    zone: s.hits ? "улицы зон: " + s.hits : "", hits: s.hits, inPoly: false, badges: s.badges ? [s.badges] : [],
+    pub: s.date, added: pd || s.added, addedAt: s.addedAt, active: !old, gone: old ? `пост старше ${POST_MAX_DAYS} дней` : "", dupGroup: s.dupOf ? "P" + s.dupOf : "", dragee: s.dragee,
+    status: s.status, notes: s.notes, dups: [], fp: s.fp,
+  });
+  const p = items[items.length - 1]; p.pair = pairOf(p);
+}
+const groupsMap = new Map();
+for (const it of items) {
+  const k = it.dupGroup ? "G" + it.dupGroup : "I" + it.id;
+  if (!groupsMap.has(k)) groupsMap.set(k, { key: k, items: [] });
+  groupsMap.get(k).items.push(it);
+}
+const groups = [...groupsMap.values()];
+// время в пути — из data/transit.json (rent-parser/transit/transit.py); нет файла — показываем как раньше
+const TRANSIT = (DATA.transit && DATA.transit.points) || {};
+const TRANSIT_HOW = (DATA.transit && DATA.transit._meta && DATA.transit._meta.how) || "";
+const tripOf = (g) => (g.lat == null ? null : TRANSIT[g.lat.toFixed(4) + "," + g.lon.toFixed(4)] || null);
+const tripMin = (g) => { const t = tripOf(g); return t && t.min != null ? t.min : 1e9; };
+const tripText = (t) => t.min == null ? "🚌 прямого транспорта нет — уточнить"
+  : t.bus ? `🚌 ~${t.min} мин (оценка): пешком ${t.walk}, ${t.bus}${t.alt ? " / " + t.alt.join(" / ") : ""}`
+  : `🚶 ~${t.min} мин пешком (оценка)`;
+const byPrio = (a, b) => SRC[a.srcKey].prio - SRC[b.srcKey].prio || (a.total ?? 1e9) - (b.total ?? 1e9);
+for (const g of groups) {
+  g.items.sort(byPrio);
+  const geo = g.items.find((x) => x.lat != null && x.geo === "сайт") || g.items.find((x) => x.lat != null);
+  g.geo = geo || null;
+  g.lat = geo ? geo.lat : null; g.lon = geo ? geo.lon : null;
+  g.km = geo ? geo.km : 99;
+  g.zone = (geo || g.items[0]).zone;
+  g.inPoly = g.items.some((x) => x.inPoly);
+  g.post = g.items.every((x) => x.post);
+  g.tkind = (g.items.find((x) => x.tkind) || {}).tkind || "";
+  g.pair = (g.items.find((x) => x.pair) || {}).pair || "";
+  if (g.items.some((x) => ONLY_ONE.test(x.desc || x.text || ""))) g.pair = "";
+}
+const itemById = Object.fromEntries(items.map((x) => [x.id, x]));
+
+// ---------- отметки (общие с прошлым просмотрщиком: ключ nvk-marks-v1) ----------
+const KEY = "nvk-marks-v1";
+let marks = {};
+try { marks = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { marks = {}; }
+const saveMarks = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} };
+// «Отказ» на посте действует и на его перепосты (тот же текст, другой ID)
+let noFps = new Set();
+function refreshNoFps() {
+  noFps = new Set(items.filter((x) => x.post && x.fp && x.fp.length >= 40 && (marks[x.id] || {}).mark === "no").map((x) => x.fp));
+}
+function groupMark(g) {
+  if (g.items.some((x) => x.post && noFps.has(x.fp) && !(marks[x.id] || {}).mark)) {
+    return { mark: "no", note: "тот же текст уже отмечен «Отказ»" };
+  }
+  for (const it of g.items) {
+    const m = marks[it.id];
+    if (m && (m.mark || m.note)) return { mark: m.mark || "", note: m.note || "" };
+  }
+  const st = g.items.find((x) => x.status === "Интересно" || x.status === "Отказ");
+  const note = (g.items.find((x) => x.notes) || {}).notes || "";
+  return { mark: st ? (st.status === "Интересно" ? "like" : "no") : "", note };
+}
+function setGroupMark(g, patch) {
+  for (const it of g.items) marks[it.id] = Object.assign({ mark: "", note: "" }, marks[it.id], patch);
+  saveMarks();
+  refreshNoFps();
+}
+
+// ---------- состояние фильтров ----------
+const UI_KEY = "nvk-ui-v3";
+const DEFAULT_UI = { srcs: ["arenda", "ya", "dc", "avito", "social"], types: [], flags: [], where: "zones", maxtotal: "", maxkm: "", budget: true, days: "", marks: "hide-no", sort: "total", showgone: false, q: "" };
+let ui = JSON.parse(JSON.stringify(DEFAULT_UI));
+try { Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}")); } catch (e) {}
+const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} };
+
+// ---------- панель фильтров ----------
+const activeItems = items.filter((x) => x.active);
+function countBy(fn) { const c = {}; for (const x of activeItems) { const k = fn(x); if (k) c[k] = (c[k] || 0) + 1; } return c; }
+const srcCount = countBy((x) => x.srcKey);
+const typeCount = countBy((x) => x.tkind);
+const flagCount = Object.fromEntries(FLAGS.map(([k, , fn]) => [k, activeItems.filter(fn).length]));
+
+function drawDaysSelect() {
+  const act = items.filter((x) => x.active);
+  const n = (fn) => act.filter(fn).length;
+  const opts = [["", "все"], ["run", `с прошлого прогона (${n(fromLastRun)})`], ["1", `за сутки (${n((x) => addedAge(x) <= 1)})`],
+    ["2", `за 2 дня (${n((x) => addedAge(x) <= 2)})`], ["7", `за неделю (${n((x) => addedAge(x) <= 7)})`]];
+  $("#days").innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+}
+drawDaysSelect();
+function drawControls() {
+  $("#srcs").innerHTML = Object.entries(SRC).map(([k, s]) =>
+    `<button class="src${ui.srcs.includes(k) ? " on" : ""}" data-src="${k}" style="--c:var(${s.css})"><span class="dot"></span>${esc(s.btn || s.label)}<span class="n">${rub(srcCount[k] || 0)}</span></button>`).join("");
+  // «Тип» и «Важно» свёрнуты: видны только включённые фильтры, остальное — по клику
+  const group = (id, list, attr, count, noneText) => {
+    const sel = ui[id], open = folds[id];
+    const shown = open ? list : list.filter(([k]) => sel.includes(k));
+    $(`[data-fold="${id}"]`).textContent = `${open ? "▾" : "▸"} ${id === "types" ? "Тип" : "Важно"}`;
+    $("#" + id).innerHTML = shown.map(([k, l]) =>
+      `<button class="fchip${sel.includes(k) ? " on" : ""}" data-${attr}="${k}">${l}<span class="n">${rub(count[k] || 0)}</span></button>`).join("") +
+      (!open && !sel.length ? `<span class="none">${noneText}</span>` : "") +
+      (!open && shown.length < list.length ? `<button class="fchip more-chip" data-unfold="${id}">＋ ещё ${list.length - shown.length}</button>` : "");
+  };
+  group("types", TYPES, "type", typeCount, "любой");
+  group("flags", FLAGS, "flag", flagCount, "без условий");
+  for (const id of ["where", "maxtotal", "maxkm", "days", "marks", "sort", "q"]) $("#" + id).value = ui[id];
+  $("#budget").checked = ui.budget; $("#showgone").checked = ui.showgone;
+  const active = { where: ui.where !== "all", maxtotal: ui.maxtotal !== "", maxkm: ui.maxkm !== "", budget: ui.budget,
+    days: ui.days !== "", marks: ui.marks !== "all", showgone: ui.showgone, q: ui.q.trim() !== "" };
+  for (const [id, on] of Object.entries(active)) $("#" + id).closest(".ctl").classList.toggle("active", on);
+}
+const folds = { types: false, flags: false };
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-fold], [data-unfold]"); if (!b) return;
+  const id = b.dataset.fold || b.dataset.unfold; folds[id] = !folds[id]; drawControls();
+});
+const toggle = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+$("#srcs").addEventListener("click", (e) => { const b = e.target.closest("[data-src]"); if (!b) return; ui.srcs = toggle(ui.srcs, b.dataset.src); changed(); });
+$("#types").addEventListener("click", (e) => { const b = e.target.closest("[data-type]"); if (!b) return; ui.types = toggle(ui.types, b.dataset.type); changed(); });
+$("#flags").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; ui.flags = toggle(ui.flags, b.dataset.flag); changed(); });
+for (const id of ["where", "maxtotal", "maxkm", "days", "marks", "sort", "q"]) $("#" + id).addEventListener("input", (e) => { ui[id] = e.target.value; changed(); });
+$("#budget").addEventListener("change", (e) => { ui.budget = e.target.checked; changed(); });
+$("#showgone").addEventListener("change", (e) => { ui.showgone = e.target.checked; changed(); });
+$("#reset").addEventListener("click", () => { ui = JSON.parse(JSON.stringify(DEFAULT_UI)); changed(); });
+function changed() { saveUi(); shown = 150; pinned = null; drawControls(); render(); }
+
+// ---------- фильтрация ----------
+function visibleItems(g) {
+  return g.items.filter((it) => ui.srcs.includes(it.srcKey) && (it.active || ui.showgone));
+}
+function filtered() {
+  const maxtotal = +ui.maxtotal || Infinity, maxkm = +ui.maxkm || Infinity, days = ui.days === "run" ? 0 : +ui.days || 0;
+  const norm = (t) => String(t || "").toLowerCase().replace(/ё/g, "е");
+  const q = norm(ui.q.trim());
+  const flagFns = FLAGS.filter(([k]) => ui.flags.includes(k)).map(([, , fn, groupOk]) => [fn, groupOk || (() => true)]);
+  const out = [];
+  for (const g of groups) {
+    const vis = visibleItems(g);
+    if (!vis.length) continue;
+    // Лучшая цена — среди объявлений, чьи условия не противоречат другим сайтам
+    // (Домклик «комиссия ?» при «комиссия 50%» на Яндексе не должен выглядеть дешевле)
+    const contra = (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0));
+    const pool = vis.filter((x) => !contra(x));
+    const best = (pool.length ? pool : vis).reduce((a, b) => ((b.total ?? 1e9) < (a.total ?? 1e9) ? b : a));
+    if (ui.types.length && !ui.types.includes(g.tkind)) continue;
+    if (flagFns.some(([fn, groupOk]) => !vis.some(fn) || !groupOk(vis))) continue;
+    if (ui.budget && !inBudget({ ...best, pair: g.pair })) continue;
+    if ((best.total ?? 0) > maxtotal) continue;
+    if (maxkm < Infinity && g.km > maxkm) continue;
+    if (g.post) {
+      if (ui.where === "zones" || ui.where === "poly") { if (!vis.some((x) => x.hits)) continue; }
+    } else {
+      if (ui.where === "zones" && !(g.inPoly || (vis.some((x) => x.srcKey === "arenda") && g.km <= RENT_KM))) continue;
+      if (ui.where === "poly" && !g.inPoly) continue;
+      if (ui.where === "geo" && g.lat == null) continue;
+    }
+    if (ui.days === "run" && !vis.some(fromLastRun)) continue;
+    if (days && !vis.some((x) => addedAge(x) <= days)) continue;
+    const m = groupMark(g).mark;
+    if (ui.marks === "hide-no" && m === "no") continue;
+    if (ui.marks === "like" && m !== "like") continue;
+    if (q && !vis.some((x) => norm(x.id + " " + (x.addr || "") + " " + (x.desc || x.text || "") + " " + (x.seller || "") + " " + (x.badges || []).join(" ")).includes(q))) continue;
+    out.push({ g, vis, best });
+  }
+  const drop = (r) => Math.max(0, ...r.vis.map((x) => (x.prev && x.prev > x.price ? x.prev - x.price : 0)));
+  const newest = (r) => r.vis.reduce((a, x) => ((x.addedAt || "") > a ? x.addedAt || "" : a), "");
+  const s = ui.sort;
+  out.sort((a, b) =>
+    s === "km" ? a.g.km - b.g.km :
+    s === "new" ? newest(b).localeCompare(newest(a)) || (a.best.total ?? 1e9) - (b.best.total ?? 1e9) :
+    s === "drop" ? drop(b) - drop(a) || (a.best.total ?? 1e9) - (b.best.total ?? 1e9) :
+    s === "trip" ? tripMin(a.g) - tripMin(b.g) || (a.best.total ?? 1e9) - (b.best.total ?? 1e9) :
+    s === "entry" ? entrySum(a.best) + (entryUnknown(a.best) ? 1 : 0) - entrySum(b.best) - (entryUnknown(b.best) ? 1 : 0) :
+    s === "many" ? new Set(b.vis.map((x) => x.srcKey)).size - new Set(a.vis.map((x) => x.srcKey)).size || (a.best.total ?? 1e9) - (b.best.total ?? 1e9) :
+    (a.best.total ?? 1e9) - (b.best.total ?? 1e9));
+  return out;
+}
+
+// ---------- карточки ----------
+/** Условие не указано на одном сайте, но известно на другом → предупреждение с источником. */
+function crossWarnings(vis) {
+  const out = [];
+  const flats = vis.filter((x) => !x.post);
+  for (const [field, label] of [["comm", "комиссия"], ["dep", "залог"]]) {
+    if (!flats.some((x) => x[field] == null)) continue;
+    const known = flats.filter((x) => x[field] > 0);
+    if (!known.length) continue;
+    const k = known[0];
+    const val = field === "comm" && k.terms.match(/комиссия (\d+)%/) ? k.terms.match(/комиссия (\d+)%/)[1] + "%" : rub(k[field]) + " ₽";
+    out.push([`${label} ${val} (${srcLabel(k)})`, "warn"]);
+  }
+  return out;
+}
+function tagsFor(vis) {
+  const seen = new Set(), out = [...crossWarnings(vis)];
+  for (const it of vis) {
+    if (it.owner && !seen.has("Собственник")) { seen.add("Собственник"); out.push(["Собственник", "ok"]); }
+    for (const b of it.badges || []) {
+      if (seen.has(b)) continue;
+      seen.add(b);
+      out.push([b, WARN_BADGE.test(b) ? "warn" : KEY_BADGE.test(b) ? "ok" : ""]);
+    }
+  }
+  return out.sort((a, b) => (a[1] === "ok" ? 0 : a[1] === "warn" ? 1 : 2) - (b[1] === "ok" ? 0 : b[1] === "warn" ? 1 : 2));
+}
+const shortTerms = (it) => (it.terms || "").replace(/ \(условия Аренды\)/, "");
+
+function offerRow(it) {
+  const s = SRC[it.srcKey];
+  const dropped = it.prev && it.prev > it.price;
+  if (it.post) {
+    return `<div class="offer"><div class="o1"><span class="pill" style="--c:var(${s.css})">${esc(srcLabel(it))}</span>
+      <span class="p">${it.price ? rub(it.price) + " ₽" : "цена ?"}</span><span class="pp">${esc(it.pub)}</span>
+      <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">пост ↗</a>${it.dragee ? `<a href="${safeUrl(it.dragee)}" target="_blank" rel="noopener">Драже ↗</a>` : ""}</div>
+      <div class="o3"><span class="id" title="ID — клик копирует">${esc(it.id)}</span></div></div>`;
+  }
+  return `<div class="offer${it.active ? "" : " gone"}">
+    <div class="o1"><span class="pill" style="--c:var(${s.css})">${esc(srcLabel(it))}</span>
+      <span class="p">${rub(it.total)} ₽/мес</span>
+      <span class="pp">(${priceBreak(it)})</span>
+      <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">объявление ↗</a></div>
+    <div class="o2">${entryBreak(it)}${/❗/.test(it.terms || "") ? ' <span class="w">· у Яндекс Аренды залог необычен — уточнить</span>' : ""}</div>
+    <div class="o3">
+      <span class="id" title="ID — клик копирует">${esc(it.id)}</span>
+      ${it.who ? `<span>${esc(it.who)}${it.seller && it.seller !== it.who ? " · " + esc(it.seller) : ""}${it.sellerStats ? " · " + esc(it.sellerStats) : ""}</span>` : ""}
+      ${it.pub ? `<span>опубл. ${esc(it.pub)}</span>` : ""}
+      <span>в базе с ${esc(it.addedAt ? ddmm(it.addedAt) + " " + it.addedAt.slice(11) : ddmm(it.added) + " (первый сбор)")}</span>
+      ${dropped ? `<span class="tag down">было ${rub(it.prev)} ₽</span>` : ""}
+      ${!it.active ? `<span class="tag warn">снято ${esc(it.gone)}</span>` : ""}
+    </div></div>`;
+}
+
+function card(r) {
+  const { g, vis, best } = r;
+  const m = groupMark(g);
+  const head = vis.find((x) => !x.post) || vis[0];
+  const isRent = vis.some((x) => x.srcKey === "arenda");
+  const freshIt = vis.filter((x) => addedAge(x) <= 2).sort((a, b) => b.addedAt.localeCompare(a.addedAt))[0];
+  const desc = vis.map((x) => x.desc || x.text || "").sort((a, b) => b.length - a.length)[0];
+  const tlabel = TYPE_LABEL[g.tkind] || (g.post ? "пост" : head.type);
+  const title = g.post
+    ? `<span class="type">${esc(tlabel)}</span>${esc(head.addr || (head.text || "").split("\n")[0].slice(0, 70))}`
+    : `<span class="type">${esc(tlabel)}</span>${esc(head.area)} м²${head.floor ? " · " + esc(head.floor) + " эт." : ""}`;
+  const geoNote = g.lat == null ? "нет координат"
+    : g.geo && /приблиз/.test(g.geo.geo || "") ? "≈ точка по улице, дом не найден"
+    : g.geo && g.geo.geo && g.geo.geo !== "сайт" ? "координаты по адресу" : "";
+  const trip = g.post ? null : tripOf(g);
+  const loc = g.post ? [head.zone] : [g.zone, g.km < 99 ? g.km + " км до НВК" : "", trip ? "" : head.travel !== "уточнить" ? head.travel : "", head.metro, geoNote];
+  const nSites = new Set(vis.map((x) => x.srcKey)).size;
+  return `<div class="card${isRent ? " rent" : ""}${m.mark ? " m-" + m.mark : ""}${selected === g.key ? " sel" : ""}" data-g="${esc(g.key)}">
+    <div class="top">
+      <div>
+        <div class="ttl">${title}</div>
+        ${g.post ? "" : `<div class="addr">${esc(head.addr)}</div>`}
+        <div class="loc">${esc(loc.filter(Boolean).join(" · "))}</div>
+        ${trip ? `<div class="loc trip" title="${esc(TRANSIT_HOW)}. Точное время — «Маршрут до НВК»">${esc(tripText(trip))}</div>` : ""}
+      </div>
+      <div class="price"><b>${rub(best.total)}</b> ₽/мес${g.post ? "" : " с КУ"}
+        <small>${priceBreak(best)}</small>
+        ${vis.length > 1 ? `<small>${vis.length} объявл. · ${nSites} ${nSites === 1 ? "сайт" : "сайта"}</small>` : ""}</div>
+    </div>
+    ${g.post ? "" : `<div class="entry">${entryBreak(best)}</div>`}
+    <div class="flags">
+      ${g.pair ? `<span class="tag pair" title="можно делить аренду: ${esc(g.pair)}">👥 вдвоём — по ${rub(Math.round(best.total / 2))} ₽</span>` : g.post ? "" : '<span class="tag solo">👤 на одного</span>'}
+      ${freshIt ? `<span class="tag new" title="добавлено в базу ${esc(freshIt.addedAt)}">новое · ${ddmm(freshIt.addedAt)}</span>` : ""}
+      ${tagsFor(vis).map(([t, c]) => `<span class="tag ${c}">${esc(t)}</span>`).join("")}
+    </div>
+    <div class="offers">${vis.map(offerRow).join("")}</div>
+    ${g.post ? `<div class="post-text">${esc((head.text || "").slice(0, 420))}${(head.text || "").length > 420 ? "…" : ""}</div>` : ""}
+    ${desc && !g.post ? `<details class="desc"><summary>описание</summary><div>${esc(desc)}</div></details>` : ""}
+    ${g.post && (head.text || "").length > 420 ? `<details class="desc"><summary>весь текст</summary><div>${esc(head.text)}</div></details>` : ""}
+    <div class="actions">
+      ${g.lat != null ? `<a href="https://yandex.ru/maps/?rtext=${g.lat},${g.lon}~${DATA.nvk[0]},${DATA.nvk[1]}&rtt=mt" target="_blank" rel="noopener">Маршрут до НВК ↗</a>` : ""}
+      <button data-act="like" class="${m.mark === "like" ? "on-like" : ""}">Интересно</button>
+      <button data-act="no" class="${m.mark === "no" ? "on-no" : ""}">Отказ</button>
+      <input data-act="note" placeholder="заметка: созвонились, просмотр…" value="${esc(m.note)}">
+    </div></div>`;
+}
+
+// ---------- карта: OpenStreetMap (Leaflet) или Яндекс Карты — выбирается при сборке файла ----------
+const MAP_MODE = "__MAPMODE__";
+let selected = null;
+function popupHtml(r) {
+  const h = r.vis.find((x) => !x.post) || r.vis[0];
+  return `<b>${esc(TYPE_LABEL[r.g.tkind] || h.type)}, ${esc(h.area)} м² · ${esc(h.addr)}</b><br>${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · 👥 вдвоём" : ""}<br>` +
+    r.vis.map((x) => `<a href="${safeUrl(x.link)}" target="_blank" rel="noopener">${esc(srcLabel(x))} ${rub(x.price)} ↗</a>`).join(" · ");
+}
+$("#legend").innerHTML = `<button class="legend-btn" id="legend-btn">Легенда ▴</button><div class="legend-body">` + Object.entries(SRC).filter(([k]) => k !== "social").map(([, s]) => `<div><i style="background:var(${s.css})"></i>${esc(s.label)}</div>`).join("") +
+  `<div style="color:var(--muted)">цвет — лучший источник квартиры<br>${MAP_MODE === "yandex" ? "на метке: ₽/мес с КУ · 👥 вдвоём · ✓ интересно" : "зелёное кольцо — «интересно»"}</div></div>`;
+$("#legend-btn").addEventListener("click", () => {
+  const open = $("#legend").classList.toggle("open");
+  $("#legend-btn").textContent = open ? "Легенда ▾" : "Легенда ▴";
+});
+const sortPts = (rows) => rows.filter((r) => r.g.lat != null).sort((a, b) => SRC[b.vis[0].srcKey].prio - SRC[a.vis[0].srcKey].prio);
+
+function leafletMap() {
+  const map = L.map("map", { preferCanvas: true }).setView([56.80, 60.66], 12);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+  L.polygon(DATA.polygon, { color: "#2f6fdb", weight: 2, fillOpacity: 0.04, dashArray: "4 4", interactive: false }).addTo(map);
+  L.circle(DATA.nvk, { radius: RENT_KM * 1000, color: cssVar("--c-arenda"), weight: 1, fill: false, dashArray: "2 6", interactive: false }).addTo(map);
+  L.marker(DATA.nvk, { title: "Кампус НВК" }).addTo(map).bindPopup("<b>ИРИТ-РТФ, кампус УрФУ «Новокольцовский»</b><br>ул. 100-летия Уральского университета, 5");
+  const layer = L.layerGroup().addTo(map);
+  const markers = {};
+  return {
+    draw(rows) {
+      layer.clearLayers();
+      for (const k in markers) delete markers[k];
+      for (const r of sortPts(rows)) {
+        const liked = groupMark(r.g).mark === "like";
+        const mk = L.circleMarker([r.g.lat, r.g.lon], {
+          radius: r.vis[0].srcKey === "arenda" ? 8 : 6, color: liked ? cssVar("--ok") : "#fff", weight: liked ? 3 : 1.5,
+          fillColor: cssVar(SRC[r.vis[0].srcKey].css), fillOpacity: 0.9,
+        }).bindPopup(() => popupHtml(r)).on("click", () => select(r.g.key, false));
+        mk.addTo(layer);
+        markers[r.g.key] = mk;
+      }
+    },
+    fly(key) { const mk = markers[key]; if (mk) { map.flyTo(mk.getLatLng(), Math.max(map.getZoom(), 15)); mk.openPopup(); } },
+  };
+}
+
+// у меток-«растяжек» свой цвет не задать — только готовые цветные пресеты Яндекса
+const STRETCHY = { arenda: "islands#violetStretchyIcon", ya: "islands#redStretchyIcon", dc: "islands#greenStretchyIcon",
+  avito: "islands#blueStretchyIcon", social: "islands#yellowStretchyIcon" };
+function yandexMap() {
+  let map = null, om = null, pending = null;
+  function draw(rows) {
+    if (!om) { pending = rows; return; }
+    om.removeAll();
+    om.add({
+      type: "FeatureCollection",
+      features: sortPts(rows).map((r) => ({
+        type: "Feature", id: r.g.key,
+        geometry: { type: "Point", coordinates: [r.g.lat, r.g.lon] },
+        properties: {
+          // подпись у точки: цена в месяц с КУ, 👥 — можно вдвоём, ✓ — «интересно»
+          iconContent: `${rub(r.best.total)}${r.g.pair ? " 👥" : ""}${groupMark(r.g).mark === "like" ? " ✓" : ""}`,
+          balloonContent: popupHtml(r),
+          price: r.best.total || 0,
+          clusterCaption: `${esc(TYPE_LABEL[r.g.tkind] || "")} ${rub(r.best.total)}${r.g.pair ? " 👥" : ""}`,
+          hintContent: `${esc(TYPE_LABEL[r.g.tkind] || "")} · ${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · можно вдвоём" : ""}`,
+        },
+        options: { preset: STRETCHY[r.vis[0].srcKey] || "islands#grayStretchyIcon" },
+      })),
+    });
+  }
+  if (typeof ymaps === "undefined") {
+    $("#map").innerHTML = '<div class="empty">Яндекс Карты не загрузились (нет сети или ключ не принят).</div>';
+    return { draw() {}, fly() {} };
+  }
+  ymaps.ready(() => {
+    map = window.__ymap = new ymaps.Map("map", { center: [56.80, 60.66], zoom: 12, controls: ["zoomControl", "fullscreenControl", "typeSelector", "trafficControl", "geolocationControl", "rulerControl"] });
+    map.geoObjects.add(new ymaps.Polygon([DATA.polygon], { hintContent: "полигон зон НВК" },
+      { fillColor: "#2f6fdb12", strokeColor: "#2f6fdb", strokeWidth: 2, strokeStyle: "dash", interactivityModel: "default#transparent" }));
+    map.geoObjects.add(new ymaps.Circle([DATA.nvk, RENT_KM * 1000], { hintContent: `${RENT_KM} км от НВК` },
+      { fillOpacity: 0, strokeColor: cssVar("--c-arenda"), strokeWidth: 1, strokeStyle: "shortdash", interactivityModel: "default#transparent" }));
+    map.geoObjects.add(new ymaps.Placemark(DATA.nvk, { iconCaption: "ИРИТ-РТФ", balloonContent: "<b>ИРИТ-РТФ, кампус УрФУ «Новокольцовский»</b><br>ул. 100-летия Уральского университета, 5" },
+      { preset: "islands#redEducationIcon" }));
+    // Кластер: число квартир + минимальная цена с КУ
+    const ClusterLayout = ymaps.templateLayoutFactory.createClass('<div class="ycl"></div>', {
+      build() {
+        ClusterLayout.superclass.build.call(this);
+        const props = this.getData().properties || {};
+        const objs = (typeof props.get === "function" ? props.get("geoObjects") : props.geoObjects) || [];
+        const prices = objs.map((o) => o.properties.price).filter((x) => x > 0);
+        const el = this.getParentElement().querySelector(".ycl");
+        if (el) el.innerHTML = `${objs.length}${prices.length ? `<small>от ${Math.round(Math.min(...prices) / 1000)}к</small>` : ""}`;
+      },
+    });
+    om = new ymaps.ObjectManager({ clusterize: true, gridSize: 48, clusterMaxZoom: 14,
+      clusterDisableClickZoom: true, clusterOpenBalloonOnClick: false });
+    om.clusters.options.set({ preset: "islands#invertedGrayClusterIcons", clusterIconContentLayout: ClusterLayout });
+    // Клик по кластеру: точки в одном доме → список только этих квартир; иначе приблизить, чтобы разошлись
+    om.clusters.events.add("click", (e) => {
+      const c = om.clusters.getById(e.get("objectId"));
+      const objs = (c && c.properties.geoObjects) || [];
+      if (!objs.length) return;
+      const la = objs.map((o) => o.geometry.coordinates[0]), lo = objs.map((o) => o.geometry.coordinates[1]);
+      const box = [[Math.min(...la), Math.min(...lo)], [Math.max(...la), Math.max(...lo)]];
+      if (box[1][0] - box[0][0] < 0.0003 && box[1][1] - box[0][1] < 0.0005) {
+        pinTo(objs.map((o) => o.id), "в этом доме");
+      } else {
+        map.setBounds(box, { checkZoomRange: true, zoomMargin: 60, duration: 300 });
+      }
+    });
+    om.objects.events.add("click", (e) => select(e.get("objectId"), false));
+    map.geoObjects.add(om);
+    if (pending) draw(pending);
+  });
+  return {
+    draw,
+    fly(key) {
+      if (!om) return;
+      const o = om.objects.getById(key);
+      if (!o) return;
+      map.setCenter(o.geometry.coordinates, Math.max(map.getZoom(), 16), { duration: 300 }).then(() => om.objects.balloon.open(key));
+    },
+  };
+}
+const mapView = MAP_MODE === "yandex" ? yandexMap() : leafletMap();
+function drawMap(rows) { mapView.draw(rows); }
+
+// ---------- отрисовка ----------
+let shown = 150, rowsCache = [], pinned = null;
+/** Показать в списке только эти квартиры (клик по кластеру в одном доме); карта не меняется. */
+function pinTo(keys, label) {
+  pinned = { keys: new Set(keys), label };
+  renderList();
+  $("#list").scrollTop = 0;
+}
+function renderList() {
+  const rows = pinned ? rowsCache.filter((r) => pinned.keys.has(r.g.key)) : rowsCache;
+  const bar = pinned ? `<div class="pinbar" id="unpin">📍 ${esc(pinned.label)}: ${rows.length} ${rows.length === 1 ? "квартира" : rows.length < 5 ? "квартиры" : "квартир"}<span>показать все ✕</span></div>` : "";
+  $("#list").innerHTML = bar + (rows.slice(0, shown).map(card).join("") || '<div class="empty">Ничего не подходит под фильтры. «Сбросить фильтры» — вверху справа.</div>') +
+    (rows.length > shown ? `<button class="more" id="more">показать ещё (${rub(rows.length - shown)})</button>` : "");
+}
+function render() {
+  rowsCache = filtered();
+  const nItems = rowsCache.reduce((a, r) => a + r.vis.length, 0);
+  $("#count").textContent = `${rub(rowsCache.length)} квартир/постов · ${rub(nItems)} объявлений`;
+  renderList();
+  drawMap(rowsCache);
+}
+function select(key, fly) {
+  selected = key;
+  if (pinned && !pinned.keys.has(key)) pinned = null;
+  let el = document.querySelector(`.card[data-g="${CSS.escape(key)}"]`);
+  if (!el) {
+    const i = rowsCache.findIndex((r) => r.g.key === key);
+    if (i >= 0) { shown = Math.max(shown, i + 20); renderList(); el = document.querySelector(`.card[data-g="${CSS.escape(key)}"]`); }
+  }
+  document.querySelectorAll(".card.sel").forEach((c) => c.classList.remove("sel"));
+  if (el) { el.classList.add("sel"); if (!fly) el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  if (fly) mapView.fly(key);
+}
+
+$("#list").addEventListener("click", (e) => {
+  if (e.target.id === "more") { shown += 150; renderList(); return; }
+  if (e.target.closest("#unpin")) { pinned = null; renderList(); return; }
+  if (e.target.classList.contains("id")) { try { navigator.clipboard.writeText(e.target.textContent); e.target.style.color = "var(--ok)"; } catch (err) {} return; }
+  const el = e.target.closest(".card");
+  if (!el) return;
+  const g = groupsMap.get(el.dataset.g);
+  const act = e.target.dataset.act;
+  if (act === "like" || act === "no") { const cur = groupMark(g).mark; setGroupMark(g, { mark: cur === act ? "" : act }); render(); return; }
+  if (e.target.closest(".top")) select(g.key, true);
+});
+$("#list").addEventListener("change", (e) => {
+  if (e.target.dataset.act === "note") setGroupMark(groupsMap.get(e.target.closest(".card").dataset.g), { note: e.target.value });
+});
+$("#export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), marks }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "nvk-marks.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+refreshNoFps();
+$("#gen").textContent = "данные от " + DATA.generated;
+drawControls();
+render();
+</script>
+</body>
+</html>

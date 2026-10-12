@@ -1,0 +1,19 @@
+.env
+reports/*.log
+__pycache__/
+*.pyc
+rent-parser/node_modules/
+rent-parser/chrome_profile/
+rent-parser/tmp/
+.DS_Store
+rent-parser/local_keys.json
+
+# большие и пересобираемые файлы (не в git)
+*.zip
+__MACOSX/
+map_all.html
+map_yandex.html
+data/listings.parquet
+data/transit.json
+data/transit_routes.json
+data/*.tmp

@@ -1,0 +1,33 @@
+[
+ {
+  "at": "2026-10-12 00:22",
+  "sources": [
+   "social",
+   "yandex"
+  ],
+  "new": 1,
+  "full": []
+ },
+ {
+  "at": "2026-10-12 11:02",
+  "sources": [
+   "avito",
+   "domclick",
+   "social",
+   "yandex"
+  ],
+  "new": 87,
+  "full": []
+ },
+ {
+  "at": "2026-10-12 12:06",
+  "sources": [
+   "avito",
+   "domclick",
+   "social",
+   "yandex"
+  ],
+  "new": 39,
+  "full": []
+ }
+]
