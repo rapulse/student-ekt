@@ -133,7 +133,7 @@ def main():
             warn.append(f"цена на {round((1 - ratio) * 100)}% ниже рынка ({mk[1]}, медиана {round(mk[0] / 1000)}к)")
         if not has_house(r.get("address")):
             warn.append("нет номера дома")
-        if r.get("author_type") == "агентство" and not verified:
+        if r.get("author_type") == "агентство" and not verified and not rent:
             warn.append("агентство без проверок")
         cheap = bool(ratio and ratio < CHEAP)
         scam = not rent and cheap and (len(warn) >= 2 or ratio < VERY_CHEAP)

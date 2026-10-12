@@ -38,6 +38,12 @@ button, input, select { font: inherit; color: inherit; }
 .grow { flex: 1; }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
+.pop-wrap { position: relative; }
+.pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 2000; width: min(560px, calc(100vw - 32px)); max-height: 75vh; overflow-y: auto;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px 12px; box-shadow: 0 8px 28px rgba(0,0,0,.35); font-size: 13px; line-height: 1.45; }
+.pop h3 { font-size: 13px; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.pop ul { margin: 0; padding-left: 18px; } .pop li { margin: 4px 0; }
+.pop .w { color: var(--bad); }
 .info { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font: italic 600 12px Georgia, serif; cursor: help; }
 .info:hover, .info:focus { border-color: var(--accent); color: var(--accent); }
 
@@ -166,6 +172,34 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
   <span class="gen" id="gen"></span>
   <div class="srcs" id="srcs"></div>
   <span class="grow"></span>
+  <div class="pop-wrap">
+    <button class="btn" id="safety-btn" aria-expanded="false">🛡 Безопасность</button>
+    <div class="pop" id="safety" hidden>
+      <h3>Как читать отметки</h3>
+      <ul>
+        <li><b>A · Я.Аренда</b> — собственника и квартиру проверил сервис, договор электронный, без залога и комиссии. Самый спокойный вариант; условия расторжения всё равно читать в договоре.</li>
+        <li><b>«Проверено в Росреестре»</b> — квартира существует и у неё есть собственник. <b>Не</b> доказывает, что объявление разместил он и что цена настоящая: схема «реальная квартира из выписки + цена-приманка» эту проверку проходит.</li>
+        <li><b>«Проверен СберID / Госуслугами»</b> — аккаунт принадлежит реальному человеку, но не обязательно собственнику. Сильнее всего — обе проверки сразу (квартира + личность).</li>
+        <li><b class="mk-lo">−30% к рынку</b> — повод присмотреться, а не гарантия. Скидка 25–45% часто объясняется площадью, ремонтом, этажом, дорогой. <b class="mk-hi">+20%</b> — дороже соседей. «Рынок» — медиана по нашей базе, не официальная статистика.</li>
+        <li><b class="w">⚠ похоже на приманку</b> — сильно дешевле рынка плюс ещё признак (нет номера дома, агентство без проверок) или дешевле на 45%+. Зелёной отметки у таких нет специально.</li>
+      </ul>
+      <h3>Перед деньгами</h3>
+      <ul>
+        <li>Никаких предоплат «за бронь», «за просмотр», «за доступ к базе». Платные «информационные агентства» — в чёрном списке.</li>
+        <li>«Я в другом городе, ключи пришлю курьером, переведите залог» — классический обман. Только после просмотра вживую.</li>
+        <li>Паспорт собственника = ФИО в выписке ЕГРН (свежая выписка с Госуслуг, показать с телефона). Если сдаёт не собственник — нотариальная доверенность.</li>
+        <li>На Авито переписка и оплата — внутри Авито. Просьба уйти в мессенджер и перевести на карту — красный флаг.</li>
+        <li>Платить переводом и только после подписания договора; в договоре — сумма залога и условия его возврата.</li>
+      </ul>
+      <h3>Договор и выезд</h3>
+      <ul>
+        <li>Пункт о расторжении с уведомлением за 30 дней — на случай места в общежитии. «Срок от 11 мес» без такого пункта — съехать раньше будет дорого.</li>
+        <li>Оба жильца вписаны в договор. Акт приёма-передачи: фото и видео каждой комнаты, мебель, техника, показания счётчиков.</li>
+        <li>Залог и комиссию в расчётах считаем потерянными: при выезде их часто удерживают «на клининг». Фото при въезде — лучший аргумент вернуть.</li>
+      </ul>
+      <p class="est">Все цифры времени в пути и «рынка» — оценки; перед звонком сверить цену, залог и комиссию на самом сайте.</p>
+    </div>
+  </div>
   <button class="btn" id="reset">Сбросить фильтры</button>
   <span class="info" tabindex="0" title="Отметки «интересно / отказ» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
   <button class="btn" id="export" hidden title="Скачать отметки в «Загрузки»: следующий прогон перенесёт их в базу и дозагрузит карточки «интересных»">Выгрузить отметки</button>
@@ -457,6 +491,11 @@ $("#flags").addEventListener("click", (e) => { const b = e.target.closest("[data
 for (const id of ["top", "months", "where", "maxtotal", "maxkm", "days", "marks", "sort", "q"]) $("#" + id).addEventListener("input", (e) => { ui[id] = e.target.value; changed(); });
 $("#budget").addEventListener("change", (e) => { ui.budget = e.target.checked; changed(); });
 $("#showgone").addEventListener("change", (e) => { ui.showgone = e.target.checked; changed(); });
+// «Безопасность»: всплывающая подсказка, закрывается по клику вне её и по Esc
+const safety = $("#safety");
+$("#safety-btn").addEventListener("click", (e) => { e.stopPropagation(); safety.hidden = !safety.hidden; $("#safety-btn").setAttribute("aria-expanded", String(!safety.hidden)); });
+document.addEventListener("click", (e) => { if (!safety.hidden && !e.target.closest(".pop-wrap")) safety.hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") safety.hidden = true; });
 $("#reset").addEventListener("click", () => { ui = JSON.parse(JSON.stringify(DEFAULT_UI)); changed(); });
 function changed() { saveUi(); shown = 150; pinned = null; drawControls(); render(); }
 
