@@ -93,6 +93,7 @@ main { flex: 1; display: flex; min-height: 0; position: relative; }
 .dest-pin { background: var(--panel); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; padding: 1px 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .smart b.tA { color: var(--c-arenda); } .smart b.tB { color: var(--ok); } .smart b.tC { color: var(--muted); } .smart b.tX { color: var(--bad); }
 .smart .w { color: var(--bad); }
+.mk-lo { color: var(--ok); font-weight: 600; } .mk-hi { color: var(--bad); font-weight: 600; } .mk-eq { color: var(--muted); }
 .price { text-align: right; white-space: nowrap; }
 .price b { font-size: 21px; }
 .price small { display: block; color: var(--muted); font-size: 12px; }
@@ -104,6 +105,10 @@ main { flex: 1; display: flex; min-height: 0; position: relative; }
 .tag.down { background: var(--ok); color: #fff; }
 
 .offers { margin-top: 10px; border-top: 1px solid var(--line); }
+.offers > summary { cursor: pointer; padding: 7px 0 2px; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.offers > summary::marker { content: ""; }
+.offers > summary::before { content: "▸"; color: var(--muted); }
+.offers[open] > summary::before { content: "▾"; }
 .offer { padding: 7px 0; border-bottom: 1px dashed var(--line); }
 .offer:last-child { border-bottom: 0; }
 .offer.gone { opacity: .5; }
@@ -468,7 +473,9 @@ function smartRow(r) {
   const tripAvg = t ? (t.wavg ?? t.min) : null;   // среднее по НВК/РТФ/фитнесу с весами, если посчитано
   const tripPenalty = tripAvg != null ? tripAvg * TRIP_RUB_PER_MIN : TRIP_MAX * TRIP_RUB_PER_MIN;
   let best = null;
-  for (const it of r.vis) {
+  const contra = contraIn(r.vis);
+  const pool = r.vis.filter((x) => !contra(x));
+  for (const it of pool.length ? pool : r.vis) {
     const s = SMART[it.id];
     if (!s || it.post || it.total == null) continue;
     const dep = it.dep ?? it.price, comm = it.comm ?? Math.round(it.price * 0.5);   // неизвестно — считаем по худшему
@@ -504,12 +511,25 @@ function smartLine(r) {
   bits.push(`<span title="(аренда + КУ + (залог + комиссия) / ${N} мес) / ${sm.people} чел.; залог и комиссия — как потерянные">${rub(sm.perMonth)} ₽/чел в мес, если жить ${N} мес${sm.unknown ? " (залог/комиссия ? — по худшему)" : ""}</span>`);
   if (ui.top === "score") bits.push(`<span title="${esc(sm.scoreWhy)}">${sm.score} баллов</span>`);
   if (sm.minTerm && sm.tier !== "A") bits.push(`<span class="w">срок от ${sm.minTerm} мес</span>`);
-  if (sm.warn.length && sm.tier !== "A") bits.push(`<span class="w">⚠ ${esc(sm.warn.join("; "))}</span>`);
+  if (sm.mkt) {
+    const p = sm.mkt.pct, cls = p <= -15 ? "mk-lo" : p >= 15 ? "mk-hi" : "mk-eq";
+    const txt = p <= -15 || p >= 15 ? `${p > 0 ? "+" : "−"}${Math.abs(p)}% к рынку` : `≈ рынок (${p > 0 ? "+" : p < 0 ? "−" : ""}${Math.abs(p)}%)`;
+    bits.push(`<span class="${cls}" title="«рынок» — медиана цены с КУ: ${esc(sm.mkt.where)} — ${rub(sm.mkt.med)} ₽ (${sm.mkt.n} квартир из базы, без дублей). Зелёный — дешевле на 15%+, красный — дороже на 15%+">${txt}</span>`);
+  }
+  const warn = sm.warn.filter((w) => !/^цена на/.test(w));   // «ниже рынка» уже показано выше цветом
+  if (sm.tier === "X") bits.push(`<span class="w">⚠ ${esc(sm.why.replace(/^приманка\? /, ""))}</span>`);
+  else if (warn.length && sm.tier !== "A") bits.push(`<span class="w">⚠ ${esc(warn.join("; "))}</span>`);
   return `<div class="smart">${bits.join(" · ")}</div>`;
 }
 // ===== конец блока УМНЫЙ ФИЛЬТР =====
 
 // ---------- фильтрация ----------
+// Лучшая цена — среди объявлений, чьи условия не противоречат другим сайтам
+// (Домклик «комиссия ?» при «комиссия 50%» на Яндексе не должен выглядеть дешевле)
+// КУ «оценка» при точной сумме на другом сайте — тоже не берём (Я.Аренда «КУ ~4 000» при «ЖКУ 5 000» на Авито)
+const kuEst = (x) => !x.post && /оценка/.test(x.kuNote || "") && !/сч[её]тчики/.test(x.kuNote || "");
+const contraIn = (vis) => (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0)) ||
+  (kuEst(x) && vis.some((y) => !y.post && y.kuNote && !kuEst(y)));
 function visibleItems(g) {
   return g.items.filter((it) => ui.srcs.includes(it.srcKey) && (it.active || ui.showgone));
 }
@@ -522,12 +542,7 @@ function filtered() {
   for (const g of groups) {
     const vis = visibleItems(g);
     if (!vis.length) continue;
-    // Лучшая цена — среди объявлений, чьи условия не противоречат другим сайтам
-    // (Домклик «комиссия ?» при «комиссия 50%» на Яндексе не должен выглядеть дешевле)
-    // КУ «оценка» при точной сумме на другом сайте — тоже не берём (Я.Аренда «КУ ~4 000» при «ЖКУ 5 000» на Авито)
-    const kuEst = (x) => !x.post && /оценка/.test(x.kuNote || "") && !/сч[её]тчики/.test(x.kuNote || "");
-    const contra = (x) => (x.comm == null && vis.some((y) => y.comm > 0)) || (x.dep == null && vis.some((y) => y.dep > 0)) ||
-      (kuEst(x) && vis.some((y) => !y.post && y.kuNote && !kuEst(y)));
+    const contra = contraIn(vis);
     const pool = vis.filter((x) => !contra(x));
     const best = (pool.length ? pool : vis).reduce((a, b) => ((b.total ?? 1e9) < (a.total ?? 1e9) ? b : a));
     if (ui.types.length && !ui.types.includes(g.tkind)) continue;
@@ -618,6 +633,12 @@ function offerRow(it) {
     </div></div>`;
 }
 
+/** Свёрнутый заголовок списка объявлений: только откуда они (сайт × сколько). */
+function srcSummary(vis) {
+  const n = new Map();
+  for (const x of vis) { const k = srcLabel(x) + "|" + srcOf(x); n.set(k, (n.get(k) || 0) + 1); }
+  return [...n].map(([k, c]) => { const [l, sk] = k.split("|"); return `<span class="pill" style="--c:var(${SRC[sk].css})">${esc(l)}${c > 1 ? " ×" + c : ""}</span>`; }).join("");
+}
 function card(r) {
   const { g, vis, best } = r;
   const m = groupMark(g);
@@ -654,7 +675,7 @@ function card(r) {
       ${freshIt ? `<span class="tag new" title="добавлено в базу ${esc(freshIt.addedAt)}">новое · ${ddmm(freshIt.addedAt)}</span>` : ""}
       ${tagsFor(vis).map(([t, c]) => `<span class="tag ${c}">${esc(t)}</span>`).join("")}
     </div>
-    <div class="offers">${vis.map(offerRow).join("")}</div>
+    <details class="offers"><summary>${srcSummary(vis)}</summary>${vis.map(offerRow).join("")}</details>
     ${g.post ? `<div class="post-text">${esc((head.text || "").slice(0, 420))}${(head.text || "").length > 420 ? "…" : ""}</div>` : ""}
     ${desc && !g.post ? `<details class="desc"><summary>описание</summary><div>${esc(desc)}</div></details>` : ""}
     ${g.post && (head.text || "").length > 420 ? `<details class="desc"><summary>весь текст</summary><div>${esc(head.text)}</div></details>` : ""}

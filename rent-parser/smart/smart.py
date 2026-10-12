@@ -17,15 +17,15 @@
 """
 import argparse
 import json
+import math
 import re
-import statistics
 import sys
 from datetime import datetime
 from pathlib import Path
 
 RP = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RP), str(RP / "pipeline")]
-from config import DATA, zone_of  # noqa: E402
+from config import DATA  # noqa: E402
 from export_viewer import _v, costs  # noqa: E402  — та же цена с КУ, что на карте
 
 OUT = DATA / "smart.json"
@@ -34,7 +34,8 @@ TRANSIT = DATA / "transit.json"
 
 CHEAP = 0.75          # цена < 75% медианы того же типа в той же зоне — «сильно ниже рынка»
 VERY_CHEAP = 0.55     # так дёшево — подозрительно и без других признаков
-MEDIAN_MIN_N = 8      # меньше объявлений в зоне — медиана по городу
+MEDIAN_MIN_N = 10     # «рынок» — медиана цены с КУ того же типа по соседям: берём наименьший радиус,
+MARKET_RADII = (1.5, 2.5, 4, 7)   # где набралось столько разных квартир; не набралось — медиана по городу
 VERIFY_RX = re.compile(r"росреестр|документы проверены|госуслуг|сберid|реквизиты проверены|данные подтверждены|собственник", re.I)
 TERM_TEXT_RX = re.compile(r"(?:от|не менее|минимум|минимальный срок[^.\d]{0,15})\s*(\d{1,2})\s*(?:-?х\s*)?мес|"
                           r"(?:от|не менее|минимум)\s+(?:одного\s+|1\s+)?года", re.I)
@@ -88,33 +89,48 @@ def main():
     except (OSError, ValueError):
         trips = {}
 
-    # медиана цены с КУ по (тип, зона) и по (тип) — для «сильно ниже рынка»
+    # «рынок»: медиана цены с КУ (аренда + КУ, КУ — как на карте, в т.ч. оценка) того же типа у соседей.
+    # Одна квартира на нескольких сайтах считается один раз (тип, точка, площадь, цена).
+    import numpy as np
     prep = []
     for r in rows:
         c = costs(r)
-        zone = zone_of(r.get("lat"), r.get("lon"))[0] if r.get("lat") is not None else "Z?"
         kind = r.get("category") or (f"{r.get('rooms')}к" if r.get("rooms") is not None else "?")
-        prep.append((r, c, zone, kind))
-    by_zone, by_kind = {}, {}
-    for r, c, zone, kind in prep:
-        if r.get("is_active") is False or not c["total"]:
+        prep.append((r, c, kind))
+    pool = {}
+    for r, c, kind in prep:
+        if r.get("is_active") is False or not c["total"] or r.get("lat") is None:
             continue
-        by_zone.setdefault((kind, zone), []).append(c["total"])
-        by_kind.setdefault(kind, []).append(c["total"])
-    med = lambda kind, zone: (statistics.median(by_zone[(kind, zone)]) if len(by_zone.get((kind, zone), [])) >= MEDIAN_MIN_N
-                              else statistics.median(by_kind[kind]) if len(by_kind.get(kind, [])) >= MEDIAN_MIN_N else None)
+        pool.setdefault(kind, {})[(round(r["lat"], 4), round(r["lon"], 4), r.get("area"), c["total"])] = (r["lat"], r["lon"], c["total"])
+    arr = {k: np.array(list(v.values()), dtype=float) for k, v in pool.items()}
+    city = {k: float(np.median(a[:, 2])) for k, a in arr.items() if len(a) >= MEDIAN_MIN_N}
+
+    def market(kind, lat, lon):
+        a = arr.get(kind)
+        if a is None or len(a) < MEDIAN_MIN_N:
+            return None
+        if lat is not None:
+            dy = (a[:, 0] - lat) * 111.2
+            dx = (a[:, 1] - lon) * 111.2 * math.cos(math.radians(lat))
+            d = np.hypot(dx, dy)
+            for rad in MARKET_RADII:
+                sel = a[d <= rad, 2]
+                if len(sel) >= MEDIAN_MIN_N:
+                    return float(np.median(sel)), f"{kind} в {str(rad).replace('.', ',')} км", len(sel)
+        return city[kind], f"{kind} по городу", len(a)
 
     out = {}
-    for r, c, zone, kind in prep:
+    for r, c, kind in prep:
         badges = [b for b in (r.get("badges") or "").split(" · ") if b]
         rent = r.get("source_type") == "arenda_program"
         owner = r.get("author_type") == "собственник"
         verified = owner or any(VERIFY_RX.search(b) for b in badges)
         warn = []
-        m = med(kind, zone)
-        ratio = c["total"] / m if m and c["total"] else None
+        mk = market(kind, r.get("lat"), r.get("lon"))
+        ratio = c["total"] / mk[0] if mk and c["total"] else None
+        mkt = {"med": round(mk[0]), "pct": round((ratio - 1) * 100), "where": mk[1], "n": mk[2]} if ratio else None
         if ratio and ratio < CHEAP:
-            warn.append(f"цена на {round((1 - ratio) * 100)}% ниже рынка ({kind}, медиана {round(m / 1000)}к)")
+            warn.append(f"цена на {round((1 - ratio) * 100)}% ниже рынка ({mk[1]}, медиана {round(mk[0] / 1000)}к)")
         if not has_house(r.get("address")):
             warn.append("нет номера дома")
         if r.get("author_type") == "агентство" and not verified:
@@ -131,7 +147,8 @@ def main():
         trip = t.get("min") if t else None
         sc, sc_why = score(tier, c["pp"] if c["share"] == 1 else round(c["total"] / c["share"]), c["dep"], c["comm"],
                            c["price"], _v(r.get("commission_pct")), trip, term, c["ku"] == 0 and "включены" in c["kuNote"], rent)
-        out[r["id"]] = {"tier": tier, "why": why, "warn": warn, "minTerm": term, "score": sc, "scoreWhy": sc_why}
+        out[r["id"]] = {"tier": tier, "why": why, "warn": warn, "minTerm": term, "score": sc, "scoreWhy": sc_why,
+                       "mkt": mkt}
 
     if args.check:
         print(json.dumps(out.get(args.check), ensure_ascii=False, indent=1))
