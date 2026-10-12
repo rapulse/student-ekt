@@ -511,7 +511,7 @@ function smartLine(r) {
   bits.push(`<span title="(аренда + КУ + (залог + комиссия) / ${N} мес) / ${sm.people} чел.; залог и комиссия — как потерянные">${rub(sm.perMonth)} ₽/чел в мес, если жить ${N} мес${sm.unknown ? " (залог/комиссия ? — по худшему)" : ""}</span>`);
   if (ui.top === "score") bits.push(`<span title="${esc(sm.scoreWhy)}">${sm.score} баллов</span>`);
   if (sm.minTerm && sm.tier !== "A") bits.push(`<span class="w">срок от ${sm.minTerm} мес</span>`);
-  if (sm.mkt) {
+  if (sm.mkt && sm.tier !== "X") {   // у «приманки» цена ниже рынка — не плюс: она уже в красном ⚠ ниже
     const p = sm.mkt.pct, cls = p <= -15 ? "mk-lo" : p >= 15 ? "mk-hi" : "mk-eq";
     const txt = p <= -15 || p >= 15 ? `${p > 0 ? "+" : "−"}${Math.abs(p)}% к рынку` : `≈ рынок (${p > 0 ? "+" : p < 0 ? "−" : ""}${Math.abs(p)}%)`;
     bits.push(`<span class="${cls}" title="«рынок» — медиана цены с КУ: ${esc(sm.mkt.where)} — ${rub(sm.mkt.med)} ₽ (${sm.mkt.n} квартир из базы, без дублей). Зелёный — дешевле на 15%+, красный — дороже на 15%+">${txt}</span>`);
