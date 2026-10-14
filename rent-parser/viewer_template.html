@@ -170,6 +170,17 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
 .lcl { width: 44px; height: 44px; border-radius: 50%; background: #9a9a9a; border: 6px solid #fffd; box-shadow: 0 0 0 1px #0002;
   display: flex; flex-direction: column; align-items: center; justify-content: center; color: #222; font: 700 12px/1.05 system-ui, sans-serif; box-sizing: border-box; cursor: pointer; }
 .lcl small { font-size: 9px; font-weight: 600; }
+/* слой «Микрорайоны»: подпись в центре микрорайона — медиана цены с КУ */
+.mkr { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--text); border: 1px dashed var(--muted); border-radius: 7px; padding: 1px 6px; font: 11px/1.35 system-ui, sans-serif; cursor: pointer; }
+.mkr b { font-weight: 600; }
+.mkr span { color: var(--muted); }
+.mkr-t { border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.mkr-t td { padding: 1px 6px 1px 0; } .mkr-t td:nth-child(n+2) { text-align: right; }
+.mkr-t .few { color: var(--muted); }
+.mkr-pin { cursor: pointer; color: var(--accent); }
+.lmkr { font-size: 14px; line-height: 30px; text-align: center; cursor: pointer; }
+.lmkr.on { background: var(--accent) !important; color: #fff !important; }
 
 @media (max-width: 860px) {
   main { flex-direction: column-reverse; }
@@ -741,7 +752,7 @@ function card(r) {
         <small>${priceBreak(best)}</small>
         ${vis.length > 1 ? `<small>${vis.length} объявл. · ${nSites} ${nSites === 1 ? "сайт" : "сайта"}</small>` : ""}</div>
     </div>
-    <div class="loc">${esc(loc.filter(Boolean).join(" · "))}</div>
+    <div class="loc">${esc(loc.filter(Boolean).join(" · "))}${!g.post && head.mkr ? ` · <span title="${esc(mkrTitle(head))}">мкр ${esc(head.mkr)}</span>` : ""}</div>
     ${typeof smartLine === "function" ? smartLine(r) : ""}
     ${trip ? tripBlock(g, trip) : ""}
     ${g.post ? "" : `<div class="entry">${entryBreak(best)}</div>`}
@@ -778,6 +789,32 @@ $("#legend-btn").addEventListener("click", () => {
 });
 const sortPts = (rows) => rows.filter((r) => r.g.lat != null).sort((a, b) => SRC[b.vis[0].srcKey].prio - SRC[a.vis[0].srcKey].prio);
 
+// ---------- микрорайоны: медиана цены с КУ по типам (pipeline/districts.py) ----------
+const MKR = DATA.districts || [];
+const MKR_TYPE = { studio: "Студия", 1: "1к", 2: "2к", 3: "3к", 4: "4к+", room: "Комната" };
+const k1 = (v) => (v / 1000).toFixed(v % 1000 ? 1 : 0).replace(".", ",") + "к";
+/** Подпись: медиана одного типа — выбранного в фильтре «Тип», если он один, иначе 2к (основной вариант — вдвоём). */
+function mkrLabel(d) {
+  const t = ui.types.length === 1 ? MKR_TYPE[ui.types[0]] : "2к", v = d.types[t];
+  return `<b>${esc(d.name)}</b>${v ? ` <span>${t} ${k1(v.med)}</span>` : ""}`;
+}
+function mkrPopup(d) {
+  const rows = Object.entries(d.types).map(([t, v]) => `<tr class="${v.n < 5 ? "few" : ""}"><td>${t}</td><td><b>${rub(v.med)}</b></td>` +
+    `<td>${k1(v.lo)}–${k1(v.hi)}</td><td>${v.n}</td></tr>`).join("");
+  return `<b>мкр ${esc(d.name)}</b> · ${d.n} квартир<table class="mkr-t"><tr class="few"><td></td><td>медиана</td><td>половина цен</td><td>шт.</td></tr>${rows}</table>` +
+    `<div class="few" style="color:var(--muted);font-size:11px;margin-top:3px">₽/мес с КУ, активные, без дублей; серым — меньше 5 квартир</div>` +
+    `<a class="mkr-pin" data-mkr="${esc(d.name)}">показать квартиры района в списке →</a>`;
+}
+function mkrTitle(it) {
+  const d = MKR.find((x) => x.name === it.mkr), v = d && d.types[MKR_TYPE[typeOf(it)]];
+  return v ? `медиана ${MKR_TYPE[typeOf(it)]} в мкр ${it.mkr}: ${rub(v.med)} ₽ с КУ (половина — ${rub(v.lo)}–${rub(v.hi)}, ${v.n} кв.)` : "микрорайон — по ближайшим объявлениям с подписью района";
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest(".mkr-pin");
+  if (!a) return;
+  pinTo(rowsCache.filter((r) => r.vis.some((x) => x.mkr === a.dataset.mkr)).map((r) => r.g.key), `мкр ${a.dataset.mkr} (с учётом фильтров)`);
+});
+
 function leafletMap() {
   const map = L.map("map", { preferCanvas: true, attributionControl: false }).setView([56.80, 60.66], 12);
   // подпись OSM обязательна по лицензии — слева внизу, справа внизу легенда
@@ -807,6 +844,44 @@ function leafletMap() {
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("mapfull")) setFull(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("mapfull")) setFull(false); });
   new Full().addTo(map);
+  // Кнопка «Микрорайоны»: подписи с медианой цены, по умолчанию выключено
+  map.createPane("mkr").style.zIndex = 640;   // поверх меток квартир (600): слой включают специально, чтобы читать
+  const mkrLayer = L.layerGroup();
+  const drawMkr = () => {
+    mkrLayer.clearLayers();
+    for (const d of MKR) L.marker([d.lat, d.lon], { pane: "mkr", icon: L.divIcon({ className: "", iconSize: null, html: `<div class="mkr">${mkrLabel(d)}</div>` }) })
+      .bindPopup(() => mkrPopup(d)).addTo(mkrLayer);
+    setTimeout(declutter);
+  };
+  // Подписи не наползают друг на друга: крупные районы (MKR уже по убыванию) первыми, мелкие — при приближении
+  function declutter() {
+    const placed = [];
+    mkrLayer.eachLayer((m) => {
+      const el = m.getElement()?.firstElementChild;
+      if (!el) return;
+      el.style.visibility = "";
+      const r = el.getBoundingClientRect();
+      const hit = placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
+      if (hit) el.style.visibility = "hidden"; else placed.push(r);
+    });
+  }
+  map.on("zoomend", () => { if (ui.mkr) declutter(); });
+  const Mkr = L.Control.extend({
+    options: { position: "topright" },
+    onAdd() {
+      const a = L.DomUtil.create("a", "lmkr", L.DomUtil.create("div", "leaflet-bar"));
+      a.href = "#"; a.title = "Микрорайоны: медиана цены с КУ по типам (квартиры на карте скрываются, пока включено)"; a.textContent = "₽";
+      L.DomEvent.disableClickPropagation(a);
+      L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); ui.mkr = !ui.mkr; saveUi(); showMkr(); });
+      return a.parentNode;
+    },
+  });
+  // Включены микрорайоны — метки квартир убираем, чтобы не накладывались; выключили — возвращаем
+  function showMkr() {
+    document.querySelector(".lmkr")?.classList.toggle("on", !!ui.mkr);
+    if (ui.mkr) { drawMkr(); mkrLayer.addTo(map); layer.remove(); } else { mkrLayer.remove(); layer.addTo(map); }
+  }
+  if (MKR.length) { new Mkr().addTo(map); setTimeout(showMkr); }
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
   L.polygon(DATA.polygon, { color: "#2f6fdb", weight: 2, fillOpacity: 0.04, dashArray: "4 4", interactive: false }).addTo(map);
   L.circle(DATA.nvk, { radius: RENT_KM * 1000, color: cssVar("--c-arenda"), weight: 1, fill: false, dashArray: "2 6", interactive: false }).addTo(map);
@@ -850,10 +925,12 @@ function leafletMap() {
         markers[r.g.key] = mk;
       }
       layer.addLayers(mks);
+      if (ui.mkr) drawMkr();   // подпись зависит от выбранного типа
     },
     fly(key) {
       const mk = markers[key];
       if (!mk) return;
+      if (ui.mkr) { ui.mkr = false; saveUi(); showMkr(); }   // к квартире — значит, снова нужны метки
       map.flyTo(mk.getLatLng(), Math.max(map.getZoom(), 16));
       map.once("moveend", () => layer.zoomToShowLayer(mk, () => mk.openPopup()));
     },
@@ -864,9 +941,10 @@ function leafletMap() {
 const STRETCHY = { arenda: "islands#violetStretchyIcon", ya: "islands#redStretchyIcon", dc: "islands#greenStretchyIcon",
   cian: "islands#yellowStretchyIcon", avito: "islands#blueStretchyIcon", social: "islands#lightBlueStretchyIcon" };
 function yandexMap() {
-  let map = null, om = null, pending = null;
+  let map = null, om = null, pending = null, mkrDraw = () => {}, mkrOff = () => {};
   function draw(rows) {
     if (!om) { pending = rows; return; }
+    mkrDraw();
     om.removeAll();
     om.add({
       type: "FeatureCollection",
@@ -929,12 +1007,31 @@ function yandexMap() {
     });
     om.objects.events.add("click", (e) => select(e.get("objectId"), false));
     map.geoObjects.add(om);
+    if (MKR.length) {
+      const coll = new ymaps.GeoObjectCollection();
+      const btn = new ymaps.control.Button({ data: { content: "₽ районы", title: "Микрорайоны: медиана цены с КУ по типам" },
+        options: { maxWidth: 120, selectOnClick: true } });
+      mkrDraw = () => {
+        coll.removeAll();
+        if (!ui.mkr) { if (om.getParent() !== map.geoObjects) map.geoObjects.add(om); return; }
+        if (om.getParent() === map.geoObjects) map.geoObjects.remove(om);   // метки квартир — пока включено
+        for (const d of MKR) coll.add(new ymaps.Placemark([d.lat, d.lon], { iconContent: mkrLabel(d).replace(/<[^>]+>/g, ""), balloonContent: mkrPopup(d) },
+          { preset: "islands#grayStretchyIcon", zIndex: 0 }));
+      };
+      btn.events.add("click", () => setTimeout(() => { ui.mkr = btn.isSelected(); saveUi(); mkrDraw(); }));
+      if (ui.mkr) btn.select();
+      mkrOff = () => { if (ui.mkr) { ui.mkr = false; saveUi(); btn.deselect(); mkrDraw(); } };
+      map.controls.add(btn, { float: "right" });
+      map.geoObjects.add(coll);
+      mkrDraw();
+    }
     if (pending) draw(pending);
   });
   return {
     draw,
     fly(key) {
       if (!om) return;
+      mkrOff();
       const o = om.objects.getById(key);
       if (!o) return;
       map.setCenter(o.geometry.coordinates, Math.max(map.getZoom(), 16), { duration: 300 }).then(() => om.objects.balloon.open(key));

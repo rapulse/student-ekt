@@ -29,5 +29,81 @@
   ],
   "new": 39,
   "full": []
+ },
+ {
+  "at": "2026-10-12 16:46",
+  "sources": [
+   "avito",
+   "domclick",
+   "social",
+   "yandex"
+  ],
+  "new": 108,
+  "full": []
+ },
+ {
+  "at": "2026-10-12 19:15",
+  "sources": [
+   "avito",
+   "domclick",
+   "social",
+   "yandex"
+  ],
+  "new": 65,
+  "full": []
+ },
+ {
+  "at": "2026-10-12 22:05",
+  "sources": [
+   "cian"
+  ],
+  "new": 2478,
+  "full": [
+   "C"
+  ]
+ },
+ {
+  "at": "2026-10-12 23:22",
+  "sources": [
+   "avito",
+   "cian",
+   "domclick",
+   "yandex"
+  ],
+  "new": 60,
+  "full": []
+ },
+ {
+  "at": "2026-10-13 10:30",
+  "sources": [
+   "avito",
+   "cian",
+   "domclick",
+   "yandex"
+  ],
+  "new": 81,
+  "full": []
+ },
+ {
+  "at": "2026-10-13 19:15",
+  "sources": [
+   "avito",
+   "cian",
+   "domclick",
+   "yandex"
+  ],
+  "new": 245,
+  "full": []
+ },
+ {
+  "at": "2026-10-14 12:33",
+  "sources": [
+   "avito",
+   "cian",
+   "domclick",
+   "yandex"
+  ],
+  "new": 198,
+  "full": []
  }
 ]

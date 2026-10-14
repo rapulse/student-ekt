@@ -14,6 +14,7 @@ import pandas as pd
 
 from config import (DATA, HORIZON_MONTHS, KU_ESTIMATE, NVK, PAIR_MAX, POLYGON, ROOT, RP, SOCIAL_ENABLED, SOLO_MAX,
                     SOLO_TARGET, ZONE_TRAVEL, km, zone_of)
+import districts
 from dedup import find_duplicates, find_post_duplicates
 from to_parquet import DEFAULT_PARQUET, load_parquet
 
@@ -180,6 +181,8 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
     for rid, g in dup.items():
         groups.setdefault(g, []).append(rid)
 
+    mkr = districts.assign(flats)
+    mkr_stats = districts.stats(flats, mkr, lambda r: costs(r)["total"])
     listings = []
     for r in flats:
         lat, lon = _v(r.get("lat")), _v(r.get("lon"))
@@ -192,7 +195,7 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
         listings.append({
             "id": r["id"], "rent": r.get("source_type") == "arenda_program", "src": r.get("source") or "",
             "link": r.get("url") or "", "addr": r.get("address") or "адрес ?", "district": r.get("district") or "",
-            "metro": r.get("metro") or "",
+            "metro": r.get("metro") or "", "mkr": mkr.get(r["id"], ""),
             "zone": f"{zcode} {zname}", "inPoly": zcode != "Z0" or zname == "в полигоне, вне зон",
             "km": round(km(lat, lon, *NVK), 1) if lat is not None else 99.0, "geo": r.get("geo_source") or "",
             "travel": ZONE_TRAVEL.get(zcode, "уточнить"),
@@ -251,6 +254,7 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
         "social": social,
         "transit": _load_extra("transit.json"),
         "smart": _load_extra("smart.json"),
+        "districts": mkr_stats,
     }
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     tpl = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", blob)
