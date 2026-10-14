@@ -1,12 +1,14 @@
 """Умный фильтр: надёжность, признаки приманки, минимальный срок, баллы — отдельный скрипт, базу не трогает.
 
 Читает data/listings.parquet (только чтение) и data/transit.json (если есть), пишет data/smart.json:
-  {"items": {"<id>": {"tier": "A|B|C|X", "why": "…", "warn": ["…"], "minTerm": 11, "score": 63, "scoreWhy": "…"}}}
+  {"items": {"<id>": {"tier": "A|O|B|C|X", "why": "…", "warn": ["…"], "minTerm": 11, "score": 63, "scoreWhy": "…"}}}
 Просмотрщик подхватывает файл, если он есть («Топ» в фильтрах); нет файла — карта как раньше.
 Удалить эксперимент целиком: папку rent-parser/smart, data/smart.json и блок «УМНЫЙ ФИЛЬТР» в viewer_template.html.
 
 Надёжность (ступени, а не баллы):
   A — Яндекс Аренда (в т.ч. на Авито): проверенный собственник, без залога и комиссии, договор сервиса;
+  O — онлайн-договор через посредника: «Домклик Аренда» (на Домклике, Авито и ЦИАН), опознаётся по шаблону текста
+      «заключаем договор онлайн … кешбэк 1% баллами Спасибо» или продавцу «Домклик»; хранит ли он залог — уточнить;
   B — собственник или отметки проверки (Росреестр, документы, Госуслуги/СберID, реквизиты);
   C — ничего из этого;
   X — похоже на приманку: цена сильно ниже рынка + ещё признак (нет номера дома, агентство без проверок).
@@ -40,6 +42,8 @@ MARKET_RADII = (1.5, 2.5, 4, 7)   # где набралось столько р�
 # (перекупщики, агенты под видом собственника). Считаем слова, где есть обе азбуки.
 MIXED_RX = re.compile(r"\b(?=\w*[а-яё])(?=\w*[a-z])\w+\b", re.I)
 MIXED_MIN = 3
+# «Домклик Аренда»: один шаблон текста на всех сайтах (на ЦИАН — от имени менеджеров, на Авито — продавец «Домклик»)
+ONLINE_RX = re.compile(r"заключаем договор онлайн", re.I)
 VERIFY_RX = re.compile(r"росреестр|документы проверены|госуслуг|сберid|реквизиты проверены|данные подтверждены|собственник", re.I)
 TERM_TEXT_RX = re.compile(r"(?:от|не менее|минимум|минимальный срок[^.\d]{0,15})\s*(\d{1,2})\s*(?:-?х\s*)?мес|"
                           r"(?:от|не менее|минимум)\s+(?:одного\s+|1\s+)?года", re.I)
@@ -64,7 +68,7 @@ def has_house(addr):
 def score(tier, pp, dep, comm, price, comm_pct, trip, term, ku_inc, rent):
     """Баллы — простая сумма; каждое слагаемое видно в scoreWhy."""
     parts = []
-    parts.append({"A": (40, "Я.Аренда"), "B": (15, "проверки"), "C": (0, "без проверок"), "X": (-50, "похоже на приманку")}[tier])
+    parts.append({"A": (40, "Я.Аренда"), "O": (30, "онлайн-договор"), "B": (15, "проверки"), "C": (0, "без проверок"), "X": (-50, "похоже на приманку")}[tier])
     parts.append((25, "≤20к/чел") if pp <= 20000 else (15, "≤25к/чел") if pp <= 25000 else (5, "≤30к/чел") if pp <= 30000 else (-20, ">30к/чел"))
     parts.append((10, "без залога") if dep == 0 else (-5, "залог ?") if dep is None else (-10, "залог > месяца") if dep > price else (0, "залог"))
     parts.append((10, "без комиссии") if comm == 0 else (-5, "комиссия ?") if comm is None
@@ -127,6 +131,8 @@ def main():
     for r, c, kind in prep:
         badges = [b for b in (r.get("badges") or "").split(" · ") if b]
         rent = r.get("source_type") == "arenda_program"
+        online = not rent and (bool(ONLINE_RX.search(r.get("description") or ""))
+                               or "Домклик" in f'{r.get("author_type") or ""} {r.get("author_name") or ""}')
         mixed = len(MIXED_RX.findall(r.get("description") or "")) >= MIXED_MIN
         # «собственник» со слов автора при замаскированном тексте — не проверка (Росреестр и т. п. — да)
         owner = r.get("author_type") == "собственник" and not mixed
@@ -145,8 +151,11 @@ def main():
             warn.append("агентство без проверок")
         cheap = bool(ratio and ratio < CHEAP)
         scam = not rent and cheap and (len(warn) >= 2 or ratio < VERY_CHEAP)
-        tier = "A" if rent else "X" if scam else "B" if verified else "C"
+        # онлайн-договор не спасает от «приманки»: шаблон текста можно скопировать
+        tier = "A" if rent else "X" if scam else "O" if online else "B" if verified else "C"
         why = ("Яндекс Аренда" if rent else "приманка? " + "; ".join(warn) if scam
+               else "онлайн-договор: Домклик Аренда (проверка квартиры и собственника, договор онлайн, оплата через сервис); "
+                    "хранит ли сервис залог — уточнить" if online
                else "проверки: " + ", ".join([b for b in badges if VERIFY_RX.search(b)] + (["собственник"] if owner else []))
                if verified else "нет отметок проверки")
         term = min_term(badges, r.get("description"))
@@ -165,8 +174,8 @@ def main():
     tmp = OUT.with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     tmp.replace(OUT)
-    n = {k: sum(1 for v in out.values() if v["tier"] == k) for k in "ABCX"}
-    print(f"⭐ умный фильтр: A {n['A']} · B {n['B']} · C {n['C']} · похоже на приманку {n['X']}; "
+    n = {k: sum(1 for v in out.values() if v["tier"] == k) for k in "AOBCX"}
+    print(f"⭐ умный фильтр: A {n['A']} · O {n['O']} · B {n['B']} · C {n['C']} · похоже на приманку {n['X']}; "
           f"с мин. сроком {sum(1 for v in out.values() if v['minTerm'])}; {OUT.name}")
     return 0
 

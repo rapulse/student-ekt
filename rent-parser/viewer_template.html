@@ -117,7 +117,7 @@ body.mapfull .legend.floating { position: fixed; z-index: 2001; }
 .trip a { color: var(--accent); }
 .est { color: var(--muted); }
 .dest-pin { background: var(--panel); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; padding: 1px 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.smart b.tA { color: var(--c-arenda); } .smart b.tB { color: var(--ok); } .smart b.tC { color: var(--muted); } .smart b.tX { color: var(--bad); }
+.smart b.tA { color: var(--c-arenda); } .smart b.tO { color: var(--c-dc); } .smart b.tB { color: var(--ok); } .smart b.tC { color: var(--muted); } .smart b.tX { color: var(--bad); }
 .smart .w { color: var(--bad); }
 .smart .tsym { font-size: 1.5em; line-height: 0; vertical-align: -0.1em; }
 .mk-lo { color: var(--ok); font-weight: 600; } .mk-hi { color: var(--bad); font-weight: 600; } .mk-eq { color: var(--muted); }
@@ -270,6 +270,7 @@ html.m .pop { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; ma
       <h3>Как читать отметки</h3>
       <ul>
         <li><b>A · Я.Аренда</b> — собственника и квартиру проверил сервис, договор электронный, без залога и комиссии. Самый спокойный вариант; условия расторжения всё равно читать в договоре.</li>
+        <li><b>Ⓞ онлайн-договор</b> — «Домклик Аренда» (Сбер): квартиру и собственника проверяет сервис, договор подписывается онлайн, аренда платится через сервис. Находим по шаблону текста «заключаем договор онлайн» на Домклике, Авито, ЦИАН и Яндексе. Хранит ли сервис залог и как его вернуть — уточнить до оплаты; обычно срок от 6 мес.</li>
         <li><b>«Проверено в Росреестре»</b> — квартира существует и у неё есть собственник. <b>Не</b> доказывает, что объявление разместил он и что цена настоящая: схема «реальная квартира из выписки + цена-приманка» эту проверку проходит.</li>
         <li><b>«Проверен СберID / Госуслугами»</b> — аккаунт принадлежит реальному человеку, но не обязательно собственнику. Сильнее всего — обе проверки сразу (квартира + личность).</li>
         <li><b class="mk-lo">−30% к рынку</b> — повод присмотреться, а не гарантия. Скидка 25–45% часто объясняется площадью, ремонтом, этажом, дорогой. <b class="mk-hi">+20%</b> — дороже соседей. «Рынок» — медиана по нашей базе, не официальная статистика.</li>
@@ -307,7 +308,7 @@ html.m .pop { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; ma
 </div>
 
 <div class="bar">
-  <label class="ctl smart-ui" hidden title="Топ-30: без «приманок», ≤30 000 ₽/чел в месяц, дорога ≤45 мин, без минимального срока от 6 мес (кроме Аренды). Остальные фильтры тоже действуют.">⭐ Топ <select id="top"><option value="off">выкл</option><option value="tiers">надёжность Ⓐ→Ⓑ→Ⓒ, потом цена</option><option value="score">по баллам</option></select></label>
+  <label class="ctl smart-ui" hidden title="Топ-30: без «приманок», ≤30 000 ₽/чел в месяц, дорога ≤45 мин, без минимального срока от 6 мес (кроме Аренды). Остальные фильтры тоже действуют.">⭐ Топ <select id="top"><option value="off">выкл</option><option value="tiers">надёжность Ⓐ→Ⓞ→Ⓑ→Ⓒ, потом цена</option><option value="score">по баллам</option></select></label>
   <label class="ctl smart-ui" hidden title="Залог и комиссию считаем потерянными и делим на столько месяцев: съехать через 3 мес — они дороже">живу <select id="months"><option value="3">3 мес</option><option value="8">8 мес</option></select></label>
   <label class="ctl">Где <select id="where">
     <option value="zones">зоны НВК + Аренда до 7 км</option><option value="poly">только полигон</option>
@@ -416,6 +417,9 @@ function entryBreak(it) {
 const has = (it, rx) => it.badges && it.badges.some((b) => rx.test(b));
 const FLAGS = [
   ["pair", "👥 Можно вдвоём", (it) => !!it.pair],
+  ["online", "Ⓞ Онлайн-договор", (it) => tierOf(it) === "O", null,
+    "Домклик Аренда (на Домклике, Авито, ЦИАН и Яндексе): квартиру и собственника проверяет сервис, договор онлайн, оплата через сервис. " +
+    "Хранит ли он залог — уточнить. Обычно срок от 6 мес"],
   ["ros", "Проверено в Росреестре", (it) => it.rosreestr],
   ["docs", "Документы проверены", (it) => has(it, /документы проверены/i)],
   ["req", "Реквизиты проверены", (it) => has(it, /реквизиты проверены/i)],
@@ -425,13 +429,14 @@ const FLAGS = [
   ["nocomm", "Без комиссии", (it) => it.comm === 0, (vis) => !vis.some((x) => x.comm > 0)],
   ["kuinc", "КУ включены", (it) => it.ku === 0],
   ["cheap", "Ниже рынка", (it) => cheapOk(it), null,
-    "Цена с КУ на 15%+ ниже медианы того же типа рядом. Только надёжные: Ⓐ Я.Аренда или Ⓑ проверено; " +
+    "Цена с КУ на 15%+ ниже медианы того же типа рядом. Только надёжные: Ⓐ Я.Аренда, Ⓞ онлайн-договор или Ⓑ проверено; " +
     "без «приманок», без объявлений без номера дома и без пометок вроде «возможна комиссия»"],
 ];
 // «Ниже рынка» без мусора: дешёвые Ⓒ и ⚠ иначе забивают всю выдачу. DATA.smart, а не SMART: счётчики считаются раньше
+const tierOf = (it) => ((DATA.smart && DATA.smart.items && DATA.smart.items[it.id]) || {}).tier;
 function cheapOk(it) {
   const s = DATA.smart && DATA.smart.items && DATA.smart.items[it.id];
-  return !!(s && s.mkt && s.mkt.pct <= -15 && (s.tier === "A" || s.tier === "B")
+  return !!(s && s.mkt && s.mkt.pct <= -15 && (s.tier === "A" || s.tier === "O" || s.tier === "B")
     && !s.warn.some((w) => !/^цена на/.test(w)) && !has(it, WARN_BADGE));
 }
 const KEY_BADGE = /росреестр|проверен|подтвержден|собственник|сберid|госуслуг/i;
@@ -621,11 +626,12 @@ function changed() { saveUi(); shown = 150; pinned = null; drawControls(); rende
 
 // ===== УМНЫЙ ФИЛЬТР (rent-parser/smart/smart.py → data/smart.json). Эксперимент: можно удалить блок целиком =====
 const SMART = (DATA.smart && DATA.smart.items) || null;
-const TIER_RANK = { A: 0, B: 1, C: 2, X: 3 };
+const TIER_RANK = { A: 0, O: 1, B: 2, C: 3, X: 4 };
 // Ⓐ Ⓑ Ⓒ — латиница в кружке (U+24B6…): сразу видно, что это уровень, а не русская «В» или «С»; высоту строки не меняют
 const TIER_SYM = (c) => `<span class="tsym">${c}</span>`;   // символ крупнее слова, line-height: 1 — строка не растёт
-const TIER_LABEL = { A: `${TIER_SYM("Ⓐ")} Я.Аренда`, B: `${TIER_SYM("Ⓑ")} проверено`, C: `${TIER_SYM("Ⓒ")} без проверок`, X: "⚠ похоже на приманку" };
+const TIER_LABEL = { A: `${TIER_SYM("Ⓐ")} Я.Аренда`, O: `${TIER_SYM("Ⓞ")} онлайн-договор`, B: `${TIER_SYM("Ⓑ")} проверено`, C: `${TIER_SYM("Ⓒ")} без проверок`, X: "⚠ похоже на приманку" };
 const TIER_HELP = "Уровень надёжности: Ⓐ — Яндекс Аренда (без залога и комиссии, собственник проверен); " +
+  "Ⓞ — онлайн-договор через Домклик Аренду (квартира и собственник проверены сервисом, оплата через сервис; залог — уточнить); " +
   "Ⓑ — есть проверка (собственник, Росреестр, документы); Ⓒ — отметок проверки нет; ⚠ — похоже на приманку.";
 const TOP_N = 30, TRIP_RUB_PER_MIN = 100, TRIP_MAX = 45;   // 10 мин дороги в одну сторону = +1 000 ₽/мес
 if (SMART) document.querySelectorAll(".smart-ui").forEach((el) => (el.hidden = false));
