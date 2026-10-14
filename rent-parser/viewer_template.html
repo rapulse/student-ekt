@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Аренда у НВК</title>
+<script>
+// Мобильная версия: класс m на <html>. Авто — узкий экран или сенсорный планшет;
+// вручную — ?m=1 / ?m=0 (запоминается в браузере), ?m=auto — снова авто
+(function () {
+  let v = null;
+  try {
+    const q = new URLSearchParams(location.search).get("m");
+    if (q === "1" || q === "0") localStorage.setItem("nvk-view", q);
+    if (q === "auto") localStorage.removeItem("nvk-view");
+    v = q === "1" || q === "0" ? q : localStorage.getItem("nvk-view");
+  } catch (e) {}
+  if (v !== "1" && v !== "0") v = matchMedia("(max-width: 860px), (pointer: coarse) and (max-width: 1100px)").matches ? "1" : "0";
+  if (v === "1") document.documentElement.classList.add("m");
+})();
+</script>
 __MAP_HEAD__
 <style>
 :root {
@@ -182,17 +197,69 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
 .lmkr { font-size: 14px; line-height: 30px; text-align: center; cursor: pointer; }
 .lmkr.on { background: var(--accent) !important; color: #fff !important; }
 
-@media (max-width: 860px) {
-  main { flex-direction: column-reverse; }
-  #list { width: 100%; max-width: none; padding: 10px 16px 40px; }
-  #map { flex: none; height: 38vh; }
-  .ctl input[type=search] { width: 140px; }
+@media (max-width: 860px) {   /* узкое окно, но выбрана полная версия */
+  html:not(.m) main { flex-direction: column-reverse; }
+  html:not(.m) #list { width: 100%; max-width: none; padding: 10px 16px 40px; }
+  html:not(.m) #map { flex: none; height: 38vh; }
+  html:not(.m) .ctl input[type=search] { width: 140px; }
 }
+
+/* ---------- мобильная версия: всё ниже — только при классе m на <html> (скрипт в <head>) ---------- */
+#filters { display: contents; }   /* на компьютере обёртка фильтров не влияет на раскладку */
+html:not(.m) .m-only { display: none !important; }
+#view-btn { display: none; }
+@media (pointer: coarse) { html:not(.m) #view-btn { display: inline-block; } }   /* телефон в полной версии — кнопка назад */
+html.m body { height: 100dvh; font-size: 15px; }
+html.m #topbar { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
+html.m #topbar h1 { font-size: 16px; white-space: nowrap; }
+html.m #topbar .gen, html.m #topbar #reset, html.m #topbar .info { display: none; }
+html.m .btn { padding: 7px 11px; }
+#mfilt-n:empty { display: none; }
+#mfilt-n { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 12px; margin-left: 2px; }
+/* фильтры — на весь экран по кнопке «⚙ Фильтры» */
+html.m #filters { display: none; position: fixed; inset: 0; z-index: 3000; background: var(--bg); overflow-y: auto; }
+html.m.filters-open #filters { display: block; }
+html.m #filters .bar { padding: 12px 16px; }
+html.m .sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); font-size: 17px; }
+html.m .sheet-foot { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line); }
+html.m .sheet-foot .btn { flex: 1; padding: 11px; }
+html.m .sheet-foot .primary { flex: 2; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+html.m .sheet-note { padding: 14px 16px 90px; color: var(--muted); font-size: 13px; }
+html.m .sheet-note a { color: var(--accent); }
+html.m #filters .ctl { display: flex; width: 100%; gap: 8px; padding: 6px 4px; font-size: 15px; }
+html.m #filters .ctl select { margin-left: auto; max-width: 68%; }
+html.m #filters .ctl select, html.m #filters .ctl input[type=number], html.m #filters .ctl input[type=search] { font-size: 16px; padding: 7px 8px; }  /* меньше 16px — iOS приближает страницу при вводе */
+html.m #filters .ctl input[type=search] { width: 100%; }
+html.m #filters .count { display: none; }
+html.m .src, html.m .fchip { padding: 6px 12px; font-size: 14px; }
+/* список и карта — по очереди на весь экран, переключатель внизу */
+html.m main { display: block; }
+html.m #list, html.m #map { position: absolute; inset: 0; width: auto; max-width: none; height: auto; min-height: 0; }
+html.m #map { z-index: 0; }
+html.m #list { z-index: 1; background: var(--bg); padding: 10px 12px 24px; }
+html.m[data-tab="map"] #list { display: none; }
+html.m[data-tab="list"] .legend.floating { display: none; }
+#mtabs { display: flex; border-top: 1px solid var(--line); background: var(--panel); padding-bottom: env(safe-area-inset-bottom); }
+#mtabs button { flex: 1; border: 0; background: none; padding: 11px 6px; font-size: 15px; color: var(--muted); cursor: pointer; }
+#mtabs button.on { color: var(--accent); font-weight: 600; box-shadow: inset 0 3px 0 var(--accent); }
+/* карточки: цена под адресом, кнопки под палец */
+html.m .card { padding: 12px; }
+html.m .top { flex-direction: column; gap: 4px; }
+html.m .price { text-align: left; white-space: normal; }
+html.m .offers > summary, html.m details.desc summary { padding: 10px 0 4px; }
+html.m .actions a, html.m .actions button { padding: 9px 12px; font-size: 14px; }
+html.m .actions input { flex-basis: 100%; font-size: 16px; padding: 8px; }
+html.m .o1 a { padding: 4px 0; }
+html.m .pop { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; max-height: calc(100dvh - 72px); z-index: 3500; font-size: 14px; }
+.to-card { display: inline-block; margin-top: 6px; font-weight: 600; color: var(--accent); cursor: pointer; }
+/* подсказки title на телефоне не видны — по нажатию всплывают внизу */
+#mtip { position: fixed; left: 12px; right: 12px; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 4000; background: var(--text); color: var(--panel);
+  border-radius: 10px; padding: 10px 12px; font-size: 13px; white-space: pre-wrap; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
 </style>
 </head>
 <body>
 
-<div class="bar">
+<div class="bar" id="topbar">
   <h1>Аренда у НВК</h1>
   <span class="gen" id="gen"></span>
   <div class="srcs" id="srcs"></div>
@@ -228,8 +295,12 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
   <button class="btn" id="reset" title="Сбросить фильтры">Сброс</button>
   <span class="info" tabindex="0" title="Отметки «интересно / отказ» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
   <button class="btn" id="export" hidden title="Скачать отметки в «Загрузки»: следующий прогон перенесёт их в базу и дозагрузит карточки «интересных»">Выгрузить отметки</button>
+  <button class="btn m-only" id="mfilt-btn">⚙ Фильтры<span id="mfilt-n"></span></button>
+  <button class="btn" id="view-btn" title="Мобильная версия">📱</button>
 </div>
 
+<div id="filters">
+<div class="sheet-head m-only"><b>Фильтры</b><span class="grow"></span><button class="btn" id="mfilt-close" aria-label="Закрыть">✕</button></div>
 <div class="bar">
   <div class="row"><button class="lbl fold" data-fold="types"></button><div class="chips" id="types"></div></div>
   <div class="row"><button class="lbl fold" data-fold="flags"></button><div class="chips" id="flags"></div></div>
@@ -252,12 +323,17 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
   <span class="grow"></span>
   <span class="count" id="count"></span>
 </div>
+<div class="sheet-foot m-only"><button class="btn" id="mreset">Сброс</button><button class="btn primary" id="mshow">Показать</button></div>
+<div class="sheet-note m-only"><span id="mgen"></span><br>Мобильная версия. <a href="?m=0">Полная версия</a> · <a href="?m=auto">выбирать автоматически</a></div>
+</div>
 
 <main>
   <div id="list"></div>
   <div id="map"></div>
   <div class="legend floating" id="legend"></div>
 </main>
+<nav id="mtabs" class="m-only"><button data-tab="list">📋 Список <span id="mcount"></span></button><button data-tab="map">🗺 Карта</button></nav>
+<div id="mtip" hidden></div>
 
 <script>
 const DATA = __DATA__;
@@ -517,6 +593,11 @@ function drawControls() {
   const active = { top: ui.top !== "off", where: ui.where !== "all", maxtotal: ui.maxtotal !== "", maxkm: ui.maxkm !== "", budget: ui.budget,
     days: ui.days !== "", marks: ui.marks !== "all", showgone: ui.showgone, q: ui.q.trim() !== "" };
   for (const [id, on] of Object.entries(active)) $("#" + id).closest(".ctl").classList.toggle("active", on);
+  // мобильная кнопка «⚙ Фильтры»: сколько фильтров отличается от умолчаний (сортировка и «живу N мес» — не фильтры)
+  const nOn = ["top", "where", "maxtotal", "maxkm", "budget", "days", "marks", "showgone", "q"].filter((k) => String(ui[k]).trim() !== String(DEFAULT_UI[k])).length +
+    (ui.flags.length ? 1 : 0) + (Object.keys(SRC).some((k) => !ui.srcs.includes(k)) ? 1 : 0) +
+    (ui.types.slice().sort().join() !== DEFAULT_UI.types.slice().sort().join() ? 1 : 0);
+  $("#mfilt-n").textContent = nOn || "";
 }
 const folds = { types: false, flags: false };
 document.addEventListener("click", (e) => {
@@ -767,6 +848,7 @@ function card(r) {
     ${g.post && (head.text || "").length > 420 ? `<details class="desc"><summary>весь текст</summary><div>${esc(head.text)}</div></details>` : ""}
     <div class="actions">
       ${g.lat != null ? `<a href="https://yandex.ru/maps/?rtext=${g.lat},${g.lon}~${DATA.nvk[0]},${DATA.nvk[1]}&rtt=mt" target="_blank" rel="noopener">Маршрут до НВК ↗</a>` : ""}
+      ${g.lat != null ? '<button data-act="map" class="m-only">🗺 На карте</button>' : ""}
       <button data-act="like" class="${m.mark === "like" ? "on-like" : ""}">Интересно</button>
       <button data-act="no" class="${m.mark === "no" ? "on-no" : ""}">Отказ</button>
       <input data-act="note" placeholder="заметка: созвонились, просмотр…" value="${esc(m.note)}">
@@ -779,7 +861,8 @@ let selected = null;
 function popupHtml(r) {
   const h = r.vis.find((x) => !x.post) || r.vis[0];
   return `<b>${esc(TYPE_LABEL[r.g.tkind] || h.type)}, ${esc(h.area)} м² · ${esc(h.addr)}</b><br>${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · 👥 вдвоём" : ""}<br>` +
-    r.vis.map((x) => `<a href="${safeUrl(x.link)}" target="_blank" rel="noopener">${esc(srcLabel(x))} ${rub(x.price)} ↗</a>`).join(" · ");
+    r.vis.map((x) => `<a href="${safeUrl(x.link)}" target="_blank" rel="noopener">${esc(srcLabel(x))} ${rub(x.price)} ↗</a>`).join(" · ") +
+    `<br><a class="to-card m-only" data-key="${esc(r.g.key)}">карточка →</a>`;
 }
 $("#legend").innerHTML = `<button class="legend-btn" id="legend-btn">Легенда ▴</button><div class="legend-body">` + Object.entries(SRC).filter(([k]) => k !== "social").map(([, s]) => `<div><i style="background:var(${s.css})"></i>${esc(s.label)}</div>`).join("") +
   `<div style="color:var(--muted)">цвет — лучший источник квартиры<br>на метке: ₽/мес с КУ · 👥 вдвоём · ✓ интересно<br>кружок: N квартир, от X тыс.; клик в одном доме — список</div></div>`;
@@ -1046,6 +1129,7 @@ let shown = 150, rowsCache = [], pinned = null;
 /** Показать в списке только эти квартиры (клик по кластеру в одном доме); карта не меняется. */
 function pinTo(keys, label) {
   pinned = { keys: new Set(keys), label };
+  setTab("list");
   renderList();
   $("#list").scrollTop = 0;
 }
@@ -1059,6 +1143,8 @@ function render() {
   rowsCache = filtered();
   const nItems = rowsCache.reduce((a, r) => a + r.vis.length, 0);
   $("#count").textContent = `${rub(rowsCache.length)} квартир/постов · ${rub(nItems)} объявлений`;
+  $("#mcount").textContent = rub(rowsCache.length);
+  $("#mshow").textContent = `Показать ${rub(rowsCache.length)}`;
   renderList();
   drawMap(rowsCache);
 }
@@ -1072,8 +1158,52 @@ function select(key, fly) {
   }
   document.querySelectorAll(".card.sel").forEach((c) => c.classList.remove("sel"));
   if (el) { el.classList.add("sel"); if (!fly) el.scrollIntoView({ behavior: "smooth", block: "start" }); }
-  if (fly) mapView.fly(key);
+  if (fly) { setTab("map"); mapView.fly(key); }
 }
+
+// ---------- мобильная версия: вкладки «Список / Карта», фильтры на весь экран ----------
+const MOBILE = document.documentElement.classList.contains("m");
+function setTab(t) {
+  if (!MOBILE) return;
+  document.documentElement.dataset.tab = t;
+  document.querySelectorAll("#mtabs [data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+}
+if (MOBILE) {
+  // кнопки сайтов — из шапки в панель фильтров (обработчики остаются на #srcs)
+  const sb = document.createElement("div");
+  sb.className = "bar";
+  sb.innerHTML = '<div class="row"><span class="lbl">Сайты</span></div>';
+  sb.firstChild.appendChild($("#srcs"));
+  $(".sheet-head").after(sb);
+  setTab("list");
+}
+const openFilters = (on) => document.documentElement.classList.toggle("filters-open", on);
+$("#mfilt-btn").addEventListener("click", () => openFilters(true));
+for (const id of ["#mfilt-close", "#mshow"]) $(id).addEventListener("click", () => { openFilters(false); setTab("list"); $("#list").scrollTop = 0; });
+$("#mreset").addEventListener("click", () => $("#reset").click());
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") openFilters(false); });
+$("#mtabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) setTab(b.dataset.tab); });
+$("#view-btn").addEventListener("click", () => { location.search = "?m=1"; });
+// «карточка →» во всплывашке метки: к карточке в списке
+document.addEventListener("click", (e) => {
+  const a = e.target.closest(".to-card");
+  if (!a) return;
+  e.preventDefault();
+  setTab("list");
+  select(a.dataset.key, false);
+});
+// title на телефоне не показывается: нажатие на подсказку — текст внизу экрана
+let tipTimer = null;
+document.addEventListener("click", (e) => {
+  if (!MOBILE) return;
+  const el = e.target.closest("#list [title], #filters [title], .info");
+  const tip = $("#mtip");
+  if (!el || el.matches("a, button, input, select, details, summary")) { tip.hidden = true; return; }
+  tip.textContent = el.getAttribute("title");
+  tip.hidden = false;
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => (tip.hidden = true), 6000);
+});
 
 $("#list").addEventListener("click", (e) => {
   if (e.target.id === "more") { shown += 150; renderList(); return; }
@@ -1084,7 +1214,8 @@ $("#list").addEventListener("click", (e) => {
   const g = groupsMap.get(el.dataset.g);
   const act = e.target.dataset.act;
   if (act === "like" || act === "no") { const cur = groupMark(g).mark; setGroupMark(g, { mark: cur === act ? "" : act }); render(); return; }
-  if (e.target.closest(".top")) select(g.key, true);
+  if (act === "map") { select(g.key, true); return; }
+  if (e.target.closest(".top") && !MOBILE) select(g.key, true);   // на телефоне — кнопкой «На карте», чтобы не уезжать при прокрутке
 });
 $("#list").addEventListener("change", (e) => {
   if (e.target.dataset.act === "note") setGroupMark(groupsMap.get(e.target.closest(".card").dataset.g), { note: e.target.value });
@@ -1100,6 +1231,7 @@ $("#export").addEventListener("click", () => {
 
 refreshNoFps();
 $("#gen").textContent = "от " + DATA.generated;
+$("#mgen").textContent = "Данные от " + DATA.generated + ".";
 drawControls();
 render();
 </script>
