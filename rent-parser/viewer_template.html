@@ -293,7 +293,7 @@ html.m .pop { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; ma
     </div>
   </div>
   <button class="btn" id="reset" title="Сбросить фильтры">Сброс</button>
-  <span class="info" tabindex="0" title="Отметки «интересно / отказ» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
+  <span class="info" tabindex="0" title="Отметки «интересно / не интересно» сейчас хранятся только в этом браузере: на карте видны, но парсер о них не знает.&#10;&#10;Скрытая кнопка «Выгрузить отметки» сохраняет их файлом в «Загрузки». Следующий запуск ./rent-parser/run.sh переносит их в базу (data/listings.parquet) и для «интересных» дозагружает подробные карточки: Росреестр, собственник, реквизиты.&#10;&#10;Как вернуть кнопку: в rent-parser/viewer_template.html у кнопки id=&quot;export&quot; убрать атрибут hidden и пересобрать карту (run.sh или PYTHONPATH=rent-parser python3 rent-parser/pipeline/export_viewer.py).">i</span>
   <button class="btn" id="export" hidden title="Скачать отметки в «Загрузки»: следующий прогон перенесёт их в базу и дозагрузит карточки «интересных»">Выгрузить отметки</button>
   <button class="btn m-only" id="mfilt-btn">⚙ Фильтры<span id="mfilt-n"></span></button>
   <button class="btn" id="view-btn" title="Мобильная версия">📱</button>
@@ -316,7 +316,7 @@ html.m .pop { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; ma
   <label class="ctl">до <input type="number" id="maxkm" step="1" placeholder="км"> км</label>
   <label class="ctl" title="одному — до 30 000 ₽/мес с КУ; вдвоём (👥) — до 60 000"><input type="checkbox" id="budget"> в бюджете</label>
   <label class="ctl">Новые <select id="days"></select></label>
-  <label class="ctl">Отметки <select id="marks"><option value="hide-no">скрыть «отказ»</option><option value="like">только «интересно»</option><option value="all">все</option></select></label>
+  <label class="ctl">Отметки <select id="marks"><option value="hide-no">скрыть «не интересно»</option><option value="like">только «интересно»</option><option value="all">все</option></select></label>
   <label class="ctl">Сортировка <select id="sort"><option value="total">цена с КУ</option><option value="entry">въезд</option><option value="km">ближе к НВК</option><option value="trip">быстрее до НВК</option><option value="new">новые</option><option value="drop">подешевели</option><option value="many">на нескольких сайтах</option></select></label>
   <label class="ctl"><input type="checkbox" id="showgone"> + снятые</label>
   <label class="ctl"><input type="search" id="q" placeholder="улица, ID, слово"></label>
@@ -525,14 +525,14 @@ const KEY = "nvk-marks-v1";
 let marks = {};
 try { marks = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { marks = {}; }
 const saveMarks = () => { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} };
-// «Отказ» на посте действует и на его перепосты (тот же текст, другой ID)
+// «Не интересно» на посте действует и на его перепосты (тот же текст, другой ID)
 let noFps = new Set();
 function refreshNoFps() {
   noFps = new Set(items.filter((x) => x.post && x.fp && x.fp.length >= 40 && (marks[x.id] || {}).mark === "no").map((x) => x.fp));
 }
 function groupMark(g) {
   if (g.items.some((x) => x.post && noFps.has(x.fp) && !(marks[x.id] || {}).mark)) {
-    return { mark: "no", note: "тот же текст уже отмечен «Отказ»" };
+    return { mark: "no", note: "тот же текст уже отмечен «Не интересно»" };
   }
   for (const it of g.items) {
     const m = marks[it.id];
@@ -850,7 +850,7 @@ function card(r) {
       ${g.lat != null ? `<a href="https://yandex.ru/maps/?rtext=${g.lat},${g.lon}~${DATA.nvk[0]},${DATA.nvk[1]}&rtt=mt" target="_blank" rel="noopener">Маршрут до НВК ↗</a>` : ""}
       ${g.lat != null ? '<button data-act="map" class="m-only">🗺 На карте</button>' : ""}
       <button data-act="like" class="${m.mark === "like" ? "on-like" : ""}">Интересно</button>
-      <button data-act="no" class="${m.mark === "no" ? "on-no" : ""}">Отказ</button>
+      <button data-act="no" class="${m.mark === "no" ? "on-no" : ""}">Не интересно</button>
       <input data-act="note" placeholder="заметка: созвонились, просмотр…" value="${esc(m.note)}">
     </div></div>`;
 }
