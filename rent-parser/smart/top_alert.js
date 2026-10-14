@@ -64,7 +64,7 @@ const rub = (n) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
   }
   if (!fresh.length) { console.log(`⭐ топ: новых вариантов нет (в топе ${top.length})`); return; }
 
-  const SYM = { A: "Ⓐ", B: "Ⓑ", C: "Ⓒ" };
+  const SYM = { A: "Ⓐ", B: "Ⓑ", C: "Ⓒ", D: "Ⓓ" };
   const kind = (k) => (k === "studio" ? "студия" : k ? `${k}к` : "");
   console.log(`\n🔔 ⭐ НОВОЕ В ТОПЕ: ${fresh.length}${TEST ? " (тест)" : ""}`);
   for (const r of fresh) {
