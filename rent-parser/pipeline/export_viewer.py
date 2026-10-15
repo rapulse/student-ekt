@@ -16,6 +16,7 @@ from config import (DATA, HORIZON_MONTHS, KU_ESTIMATE, NVK, PAIR_MAX, POLYGON, R
                     SOLO_TARGET, ZONE_TRAVEL, km, zone_of)
 import districts
 from dedup import find_duplicates, find_post_duplicates
+from lease_term import lease_term
 from to_parquet import DEFAULT_PARQUET, load_parquet
 
 OUT = ROOT / "map_all.html"              # карта OpenStreetMap (Leaflet)
@@ -210,6 +211,7 @@ def export_to_viewer(path=DEFAULT_PARQUET, out=OUT, log=print):
             "rooms": _int(r.get("rooms")),
             "owner": (r.get("author_type") == "собственник") or any(b == "Собственник" for b in badges),
             "desc": (r.get("description") or "")[:700],
+            "term": lease_term(r),   # мин. срок аренды: {kind: long|soft|short, months, frag} или None
             "pub": r.get("published") or "", "added": r.get("first_seen") or "", "seen": r.get("last_seen") or "",
             "addedAt": r.get("first_seen_at") or "",   # пусто = из первого (базового) сбора, не «новое»
             "active": r.get("is_active") is not False, "gone": r.get("inactive_since") or "",

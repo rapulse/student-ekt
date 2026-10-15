@@ -29,6 +29,7 @@ RP = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RP), str(RP / "pipeline")]
 from config import DATA  # noqa: E402
 from export_viewer import _v, costs  # noqa: E402  — та же цена с КУ, что на карте
+from lease_term import lease_term  # noqa: E402
 
 OUT = DATA / "smart.json"
 PARQUET = DATA / "listings.parquet"
@@ -45,19 +46,12 @@ MIXED_MIN = 3
 # «Домклик Аренда»: один шаблон текста на всех сайтах (на ЦИАН — от имени менеджеров, на Авито — продавец «Домклик»)
 ONLINE_RX = re.compile(r"заключаем договор онлайн", re.I)
 VERIFY_RX = re.compile(r"росреестр|документы проверены|госуслуг|сберid|реквизиты проверены|данные подтверждены|собственник", re.I)
-TERM_TEXT_RX = re.compile(r"(?:от|не менее|минимум|минимальный срок[^.\d]{0,15})\s*(\d{1,2})\s*(?:-?х\s*)?мес|"
-                          r"(?:от|не менее|минимум)\s+(?:одного\s+|1\s+)?года", re.I)
 
 
-def min_term(badges, text):
-    for b in badges:
-        m = re.match(r"срок от (\d+) мес", b)
-        if m:
-            return int(m.group(1))
-    m = TERM_TEXT_RX.search(text or "")
-    if m:
-        return int(m.group(1)) if m.group(1) else 12
-    return None
+def min_term(r):
+    """Минимальный срок от 3 мес (поля сайта, отметки, текст) — pipeline/lease_term.py, как фильтр на карте."""
+    t = lease_term(r)
+    return t["months"] if t and t["kind"] == "long" else None
 
 
 def has_house(addr):
@@ -158,7 +152,7 @@ def main():
                     "хранит ли сервис залог — уточнить" if online
                else "проверки: " + ", ".join([b for b in badges if VERIFY_RX.search(b)] + (["собственник"] if owner else []))
                if verified else "нет отметок проверки")
-        term = min_term(badges, r.get("description"))
+        term = min_term(r)
         lat, lon = r.get("lat"), r.get("lon")
         t = trips.get(f"{lat:.4f},{lon:.4f}") if lat is not None else None
         trip = t.get("min") if t else None

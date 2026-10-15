@@ -146,6 +146,7 @@ body.mapfull .legend.floating { position: fixed; z-index: 2001; }
 .o1 .pp { color: var(--muted); font-size: 13px; }
 .g { color: var(--ok); font-weight: 600; }
 .w { color: var(--warn); font-weight: 600; }
+.tg-bad { color: var(--bad); font-weight: 600; }
 .r { color: var(--bad); font-weight: 600; }
 .q { color: var(--muted); }
 .entry { font-size: 13px; margin-top: 6px; }
@@ -422,6 +423,16 @@ const FLAGS = [
   ["online", "Ⓑ Онлайн-договор", (it) => tierOf(it) === "B", null,
     "Домклик Аренда (на Домклике, Авито, ЦИАН и Яндексе): квартиру и собственника проверяет сервис, договор онлайн, оплата через сервис. " +
     "Хранит ли он залог — уточнить. Обычно срок от 6 мес"],
+  ["noterm", "🗓 Без длительного срока", (it) => !it.post && (!it.term || it.term.kind === "short"),
+    (vis) => !vis.some((x) => x.term && x.term.kind !== "short"),
+    "Нигде (ни в одном объявлении квартиры) не сказано «от 3+ мес», «от года», «на длительный срок», «долгосрочно» или ЦИАН «длительно». " +
+    "Яндекс Аренда (от 11 мес) сюда не попадает. Срок ищется в полях сайта и в тексте — пометка 🗓 в карточке, наведите на неё"],
+  ["nomin", "🗓 Нет минимума от 3 мес", (it) => !it.post && !(it.term && it.term.kind === "long"),
+    (vis) => !vis.some((x) => x.term && x.term.kind === "long"),
+    "Мягче: убирает только явный минимум (от 3 мес, от полугода, от года, штраф/залог не возвращается при выезде раньше N мес). " +
+    "«На длительный срок» без цифр остаётся — можно звонить и договариваться"],
+  ["short", "🗓 Явно можно на 1–2 мес", (it) => !!(it.term && it.term.kind === "short"), null,
+    "В объявлении прямо сказано: на короткий срок, от 1 месяца, на 1–2 мес, ЦИАН «несколько месяцев»"],
   ["ros", "Проверено в Росреестре", (it) => it.rosreestr],
   ["docs", "Документы проверены", (it) => has(it, /документы проверены/i)],
   ["req", "Реквизиты проверены", (it) => has(it, /реквизиты проверены/i)],
@@ -434,6 +445,15 @@ const FLAGS = [
     "Цена с КУ на 15%+ ниже медианы того же типа рядом. Только надёжные: Ⓐ Я.Аренда, Ⓑ онлайн-договор или Ⓒ проверено; " +
     "без «приманок», без объявлений без номера дома и без пометок вроде «возможна комиссия»"],
 ];
+/** Пометка о сроке аренды: красная — минимум от 3 мес, жёлтая — «длительный срок», зелёная — можно коротко. */
+function termTag(it) {
+  const t = it.term;
+  if (!t) return "";
+  const txt = t.kind === "long" ? `🗓 срок от ${t.months} мес` : t.kind === "soft" ? "🗓 «на длительный срок»"
+    : t.months ? `🗓 можно от ${t.months} мес` : "🗓 можно коротко";
+  const cls = t.kind === "long" ? "tg-bad" : t.kind === "soft" ? "w" : "g";
+  return ` <span class="${cls}" title="${esc(t.frag)}">· ${txt}</span>`;
+}
 // «Ниже рынка» без мусора: дешёвые Ⓒ и ⚠ иначе забивают всю выдачу. DATA.smart, а не SMART: счётчики считаются раньше
 const tierOf = (it) => ((DATA.smart && DATA.smart.items && DATA.smart.items[it.id]) || {}).tier;
 function cheapOk(it) {
@@ -796,7 +816,7 @@ function offerRow(it) {
       <span class="p">${rub(it.total)} ₽/мес</span>
       <span class="pp">(${priceBreak(it)})</span>
       <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">объявление ↗</a></div>
-    <div class="o2">${entryBreak(it)}${/❗/.test(it.terms || "") ? ' <span class="w">· у Яндекс Аренды залог необычен — уточнить</span>' : ""}</div>
+    <div class="o2">${entryBreak(it)}${/❗/.test(it.terms || "") ? ' <span class="w">· у Яндекс Аренды залог необычен — уточнить</span>' : ""}${termTag(it)}</div>
     <div class="o3">
       <span class="id" title="ID — клик копирует">${esc(it.id)}</span>
       ${it.who ? `<span>${esc(it.who)}${it.seller && it.seller !== it.who ? " · " + esc(it.seller) : ""}${it.sellerStats ? " · " + esc(it.sellerStats) : ""}</span>` : ""}
