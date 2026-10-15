@@ -183,6 +183,7 @@ details.desc div { white-space: pre-wrap; color: var(--text); margin-top: 4px; m
   border: 2px solid var(--pc); border-radius: 10px; padding: 1px 7px; font: 600 12px/1.4 system-ui, sans-serif; box-shadow: 0 1px 3px #0005; cursor: pointer; }
 .lpin::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -5px; border: 5px solid transparent; border-top: 6px solid var(--pc); }
 .lpin.like { box-shadow: 0 0 0 3px var(--ok); }
+.lpin.no { opacity: .4; --pc: #999; color: #777; font-weight: 400; }
 .lcl { width: 44px; height: 44px; border-radius: 50%; background: #9a9a9a; border: 6px solid #fffd; box-shadow: 0 0 0 1px #0002;
   display: flex; flex-direction: column; align-items: center; justify-content: center; color: #222; font: 700 12px/1.05 system-ui, sans-serif; box-sizing: border-box; cursor: pointer; }
 .lcl small { font-size: 9px; font-weight: 600; }
@@ -770,7 +771,10 @@ function filtered() {
     s === "entry" ? entrySum(a.best) + (entryUnknown(a.best) ? 1 : 0) - entrySum(b.best) - (entryUnknown(b.best) ? 1 : 0) :
     s === "many" ? new Set(b.vis.map((x) => x.srcKey)).size - new Set(a.vis.map((x) => x.srcKey)).size || (a.best.total ?? 1e9) - (b.best.total ?? 1e9) :
     (a.best.total ?? 1e9) - (b.best.total ?? 1e9));
-  return typeof smartApply === "function" ? smartApply(out) : out;
+  const res = typeof smartApply === "function" ? smartApply(out) : out;
+  // «Не интересно» — в конец списка (и в списке дома по клику на кластер): сверху только живые варианты
+  const isNo = (r) => groupMark(r.g).mark === "no";
+  return [...res.filter((r) => !isNo(r)), ...res.filter(isNo)];
 }
 
 // ---------- карточки ----------
@@ -1022,13 +1026,13 @@ function leafletMap() {
       for (const k in markers) delete markers[k];
       const mks = [];
       for (const r of sortPts(rows)) {
-        const liked = groupMark(r.g).mark === "like";
-        // подпись у точки: цена в месяц с КУ, 👥 — можно вдвоём, ✓ — «интересно»
+        const mark = groupMark(r.g).mark, liked = mark === "like", no = mark === "no";
+        // подпись у точки: цена в месяц с КУ, 👥 — можно вдвоём, ✓ — «интересно»; «не интересно» — бледная и не даёт «от Nк» кластеру
         const label = `${rub(r.best.total)}${r.g.pair ? " 👥" : ""}${liked ? " ✓" : ""}`;
         const mk = L.marker([r.g.lat, r.g.lon], {
-          key: r.g.key, price: r.best.total || 0,
+          key: r.g.key, price: no ? 0 : r.best.total || 0, zIndexOffset: no ? -1000 : 0,
           icon: L.divIcon({ className: "", iconSize: null, iconAnchor: [0, 0],
-            html: `<div class="lpin${liked ? " like" : ""}" style="--pc:var(${SRC[r.vis[0].srcKey].css})">${label}</div>` }),
+            html: `<div class="lpin${liked ? " like" : no ? " no" : ""}" style="--pc:var(${SRC[r.vis[0].srcKey].css})">${label}</div>` }),
           title: `${TYPE_LABEL[r.g.tkind] || ""} · ${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · можно вдвоём" : ""}`,
         }).bindPopup(() => popupHtml(r), { offset: [0, -22] }).on("click", () => select(r.g.key, false));
         mks.push(mk);
@@ -1065,11 +1069,11 @@ function yandexMap() {
           // подпись у точки: цена в месяц с КУ, 👥 — можно вдвоём, ✓ — «интересно»
           iconContent: `${rub(r.best.total)}${r.g.pair ? " 👥" : ""}${groupMark(r.g).mark === "like" ? " ✓" : ""}`,
           balloonContent: popupHtml(r),
-          price: r.best.total || 0,
+          price: groupMark(r.g).mark === "no" ? 0 : r.best.total || 0,   // «не интересно» не даёт «от Nк» кластеру
           clusterCaption: `${esc(TYPE_LABEL[r.g.tkind] || "")} ${rub(r.best.total)}${r.g.pair ? " 👥" : ""}`,
           hintContent: `${esc(TYPE_LABEL[r.g.tkind] || "")} · ${rub(r.best.total)} ₽/мес с КУ${r.g.pair ? " · можно вдвоём" : ""}`,
         },
-        options: { preset: STRETCHY[r.vis[0].srcKey] || "islands#grayStretchyIcon" },
+        options: { preset: groupMark(r.g).mark === "no" ? "islands#grayStretchyIcon" : STRETCHY[r.vis[0].srcKey] || "islands#grayStretchyIcon" },
       })),
     });
   }
